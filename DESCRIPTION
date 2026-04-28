@@ -16,3 +16,6 @@ Imports:
     bslib,
     lme4,
     ggplot2
+Suggests:
+    knitr,
+    rmarkdown

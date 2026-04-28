@@ -1,0 +1,6 @@
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^ROADMAP\.md$
+^\.github$
+^vignettes$

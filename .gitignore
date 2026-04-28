@@ -11,3 +11,5 @@ Thumbs.db
 rsconnect/
 renv/library/
 renv/staging/
+vignettes/*.html
+vignettes/*_files/
