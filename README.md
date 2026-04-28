@@ -35,6 +35,8 @@ The most helpful feedback includes the model structure, whether you used the
 built-in example or uploaded data, screenshots of confusing output, and any
 generated code or error messages.
 
+For a short guided walkthrough, see [DEMO.md](DEMO.md).
+
 ## Why mlmr?
 
 Mixed-effects and multilevel models are powerful, but many researchers learn
