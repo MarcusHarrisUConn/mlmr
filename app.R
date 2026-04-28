@@ -46,12 +46,10 @@ ui <- page_navbar(
     "Data",
     layout_sidebar(
       sidebar = sidebar(
-        radioButtons("data_source", "Data source", c("Example HSB-style data" = "example", "Upload CSV" = "upload")),
-        conditionalPanel(
-          "input.data_source == 'upload'",
-          fileInput("csv_file", "CSV file", accept = c(".csv")),
-          checkboxInput("strings_as_factors", "Convert text columns to factors", TRUE)
-        ),
+        fileInput("data_file", "Upload data file", accept = c(".csv", ".txt", ".tsv", ".xlsx", ".xls", ".sav", ".por", ".sas7bdat", ".xpt", ".dta")),
+        checkboxInput("use_example_data", "Use built-in example data", TRUE),
+        checkboxInput("strings_as_factors", "Convert text columns to factors", TRUE),
+        uiOutput("data_source_note"),
         uiOutput("group_selector"),
         selectInput(
           "structure_type",
@@ -279,12 +277,12 @@ ui <- page_navbar(
               card(card_header("Diagnostics"), tableOutput("diagnostics_table")),
               layout_columns(
                 col_widths = c(6, 6),
-                card(card_header("Residuals vs Fitted"), plotOutput("residual_fitted_plot", height = "340px")),
-                card(card_header("Normal QQ Plot"), plotOutput("qq_plot", height = "340px")),
-                card(card_header("Observed vs Fitted"), plotOutput("observed_fitted_plot", height = "340px")),
-                card(card_header("Random Effects With Intervals"), plotOutput("random_effects_interval_plot", height = "340px"))
+                card(card_header("Residuals vs Fitted"), uiOutput("residual_fitted_loading"), plotOutput("residual_fitted_plot", height = "340px")),
+                card(card_header("Normal QQ Plot"), uiOutput("qq_loading"), plotOutput("qq_plot", height = "340px")),
+                card(card_header("Observed vs Fitted"), uiOutput("observed_fitted_loading"), plotOutput("observed_fitted_plot", height = "340px")),
+                card(card_header("Random Effects With Intervals"), uiOutput("random_effects_loading"), plotOutput("random_effects_interval_plot", height = "340px"))
               ),
-              card(card_header("Model-Implied Lines by Group"), plotOutput("model_lines_plot", height = "460px"))
+              card(card_header("Model-Implied Lines by Group"), uiOutput("model_lines_loading"), plotOutput("model_lines_plot", height = "460px"))
             )
           )
         ),
@@ -389,18 +387,62 @@ server <- function(input, output, session) {
   fit_state <- reactiveVal(list(result = NULL, error = NULL, optimizer = NULL))
   model_history <- reactiveVal(list())
 
+  read_uploaded_data <- function(file_info) {
+    ext <- tolower(tools::file_ext(file_info$name))
+    path <- file_info$datapath
+    if (ext %in% c("csv")) {
+      return(read.csv(path, stringsAsFactors = isTRUE(input$strings_as_factors), check.names = TRUE))
+    }
+    if (ext %in% c("txt", "tsv")) {
+      sep <- if (identical(ext, "tsv")) "\t" else ""
+      return(read.table(path, header = TRUE, sep = sep, stringsAsFactors = isTRUE(input$strings_as_factors), check.names = TRUE))
+    }
+    if (ext %in% c("xlsx", "xls")) {
+      if (!requireNamespace("readxl", quietly = TRUE)) {
+        stop("Install the readxl package to upload Excel files.", call. = FALSE)
+      }
+      return(as.data.frame(readxl::read_excel(path), check.names = TRUE))
+    }
+    if (ext %in% c("sav", "por", "sas7bdat", "xpt", "dta")) {
+      if (!requireNamespace("haven", quietly = TRUE)) {
+        stop("Install the haven package to upload SPSS, SAS, or Stata files.", call. = FALSE)
+      }
+      imported <- switch(
+        ext,
+        sav = haven::read_sav(path),
+        por = haven::read_por(path),
+        sas7bdat = haven::read_sas(path),
+        xpt = haven::read_xpt(path),
+        dta = haven::read_dta(path)
+      )
+      return(as.data.frame(imported, check.names = TRUE))
+    }
+    stop("Unsupported file type. Use CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files.", call. = FALSE)
+  }
+
   data_reactive <- reactive({
-    if (identical(input$data_source, "upload") && !is.null(input$csv_file)) {
-      dat <- read.csv(input$csv_file$datapath, stringsAsFactors = isTRUE(input$strings_as_factors), check.names = TRUE)
+    if (!isTRUE(input$use_example_data) && !is.null(input$data_file)) {
+      dat <- read_uploaded_data(input$data_file)
     } else {
       dat <- example_hsb()
     }
+    names(dat) <- make.names(names(dat), unique = TRUE)
     for (nm in names(dat)) {
-      if (is.character(dat[[nm]]) && (identical(input$data_source, "example") || isTRUE(input$strings_as_factors))) {
+      if (is.character(dat[[nm]]) && (isTRUE(input$use_example_data) || isTRUE(input$strings_as_factors))) {
         dat[[nm]] <- factor(dat[[nm]])
       }
     }
     dat
+  })
+
+  output$data_source_note <- renderUI({
+    if (isTRUE(input$use_example_data)) {
+      return(div(class = "mode-note", "Using the built-in example data. Uncheck this box to use an uploaded file."))
+    }
+    if (is.null(input$data_file)) {
+      return(div(class = "mode-note", "Upload a CSV, TSV/TXT, Excel, SPSS, SAS, or Stata file to use your own data."))
+    }
+    div(class = "mode-note", sprintf("Using uploaded file: %s", input$data_file$name))
   })
 
   output$data_preview <- renderTable(head(data_reactive(), 10), striped = TRUE, bordered = TRUE)
@@ -1062,6 +1104,18 @@ server <- function(input, output, session) {
     groups <- unlist(res$spec$grouping, use.names = FALSE)
     selectInput("diagnostic_group", "Grouping factor for model lines", choices = groups, selected = first_or(groups))
   })
+
+  diagnostic_loading <- function(message = "Preparing diagnostic plot...") {
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    div(class = "loading-note", span(class = "loading-dot"), message)
+  }
+
+  output$residual_fitted_loading <- renderUI(diagnostic_loading())
+  output$qq_loading <- renderUI(diagnostic_loading())
+  output$observed_fitted_loading <- renderUI(diagnostic_loading())
+  output$random_effects_loading <- renderUI(diagnostic_loading("Estimating random-effect intervals..."))
+  output$model_lines_loading <- renderUI(diagnostic_loading("Preparing group-specific model lines..."))
 
   diagnostic_df <- reactive({
     res <- active_result()

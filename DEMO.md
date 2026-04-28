@@ -46,7 +46,8 @@ Please pay attention to:
 - whether equations look correct and manuscript-ready;
 - whether APA tables are useful;
 - whether the exported R code reproduces what the app did;
-- whether uploaded data are easy to use;
+- whether uploaded CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files are easy to
+  use;
 - whether the **Model Readiness** checklist catches problems before fitting;
 - whether diagnostics and warnings are interpretable.
 

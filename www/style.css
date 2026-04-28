@@ -389,6 +389,30 @@ pre {
   margin-bottom: 10px;
 }
 
+.loading-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--mlmr-muted);
+  font-size: 0.9rem;
+  margin: 4px 0 8px;
+}
+
+.loading-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid #cdbf9d;
+  border-top-color: var(--mlmr-gold);
+  animation: mlmr-spin 0.9s linear infinite;
+}
+
+@keyframes mlmr-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 [data-bs-theme="dark"] body {
   background:
     linear-gradient(180deg, rgba(35, 57, 91, 0.38), rgba(16, 24, 32, 0.84) 280px),
@@ -553,4 +577,13 @@ pre {
   background: #301a18;
   border-color: #8e4c42;
   color: #ffd8d3;
+}
+
+[data-bs-theme="dark"] .loading-note {
+  color: #cdd8dd;
+}
+
+[data-bs-theme="dark"] .loading-dot {
+  border-color: #344b5e;
+  border-top-color: #8eb7c3;
 }

@@ -47,6 +47,10 @@ mlmr::run_mlmr()
 The app opens with a built-in HSB-style example so users can test the full
 workflow before uploading their own data.
 
+Uploaded data can be provided as CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files.
+Excel support uses the optional `readxl` package, and SPSS/SAS/Stata support
+uses the optional `haven` package.
+
 ## Recommended First Workflow
 
 1. Open the app.

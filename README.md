@@ -21,6 +21,8 @@ export reproducible code and LaTeX.
 - Tau variance-covariance matrix display
 - Diagnostics and model comparison tools
 - Built-in HSB-style example data with preset model choices
+- Upload support for CSV, TSV/TXT, Excel, SPSS, SAS, and Stata files
+- Model-readiness checks before fitting custom models
 - Shiny interface plus reproducible R code, Quarto, and LaTeX export
 
 ## Public Beta Feedback

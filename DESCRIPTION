@@ -17,6 +17,8 @@ Imports:
     lme4,
     ggplot2
 Suggests:
+    haven,
     knitr,
+    readxl,
     rmarkdown
 VignetteBuilder: knitr
