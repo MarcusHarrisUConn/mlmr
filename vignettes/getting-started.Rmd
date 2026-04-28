@@ -1,0 +1,98 @@
+---
+title: "Getting Started With mlmr"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting Started With mlmr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Overview
+
+`mlmr` is an open-source Shiny app and R toolkit for fitting, understanding,
+and reporting mixed-effects and multilevel models in R. It is designed for
+researchers who want a guided modeling workflow while keeping the underlying R
+code visible and reproducible.
+
+The app is built around four practical goals:
+
+- specify a model without hiding the formula;
+- make centering and random-effects choices explicit;
+- show equations, variance components, and Tau matrix structure;
+- export tables, code, LaTeX, and Quarto-ready reports.
+
+## Install the Development Version
+
+```{r install}
+install.packages("remotes")
+remotes::install_github("MarcusHarrisUConn/mlmr")
+```
+
+Then load the package:
+
+```{r load}
+library(mlmr)
+```
+
+## Launch the App
+
+```{r launch}
+mlmr::run_mlmr()
+```
+
+The app opens with a built-in HSB-style example so users can test the full
+workflow before uploading their own data.
+
+## Recommended First Workflow
+
+1. Open the app.
+2. Keep the example dataset selected on the **Data** tab.
+3. Review grouping factors and variable roles.
+4. Move to **Model** and inspect the preset outcome, predictors, centering, and
+   random-effects choices.
+5. Move to **Estimate** and click **Fit Example Model**.
+6. Open **Results** to review the dashboard, APA tables, equations,
+   interpretation, diagnostics, and model comparison panels.
+7. Open **Report & Code** to export reproducible R code, raw LaTeX, APA tables,
+   or a Quarto-ready report.
+
+## What the Example Demonstrates
+
+The built-in example includes a student outcome, student-level predictors,
+school-level predictors, categorical predictors, interactions, and random
+effects. It is intentionally more complex than a minimal random-intercept model
+so users can see why mixed-effects and multilevel models are useful.
+
+The example currently demonstrates:
+
+- cluster-mean centering for lower-level predictors;
+- grand-mean centering for contextual predictors;
+- dummy coding for categorical predictors;
+- random intercepts and random slopes;
+- fixed interactions and cross-level interaction-style terms;
+- APA-style tables;
+- level-by-level equations and combined equations;
+- Tau variance-covariance matrix display.
+
+## Reproducibility
+
+Every model fit in `mlmr` is paired with reproducible code. The **Report & Code**
+tab exports the analysis code and the raw LaTeX used for tables and equations.
+
+The long-term goal is that users can move from the graphical workflow to a
+scripted R workflow without losing any modeling decisions.
+
+## Current Status
+
+`mlmr` is in early development. The current version is suitable for testing,
+teaching, and feedback, but it should not yet be treated as a final statistical
+package for production research without independent verification of the fitted
+model and diagnostics.

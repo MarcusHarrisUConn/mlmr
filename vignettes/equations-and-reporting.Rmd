@@ -1,0 +1,103 @@
+---
+title: "Equations and Reporting"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Equations and Reporting}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Why Equations Matter
+
+Mixed-effects and multilevel models are often taught through notation before
+they are taught through software syntax. `mlmr` keeps those two views connected:
+the app shows the fitted model formula, level-by-level equations, the combined
+equation, random-effects structure, and reproducible R code.
+
+This is especially useful when a model includes centering, dummy-coded
+predictors, interactions, random slopes, or multiple grouping factors.
+
+## Level-by-Level Equations
+
+The **Results > Equations** tab displays the model in a level-by-level format.
+For a two-level model, the Level 1 equation represents the lower-level outcome
+model, while the Level 2 equations describe how intercepts and slopes are
+modeled across higher-level units.
+
+The display is intentionally stacked so each coefficient is visible on its own
+line. This makes it easier to see which predictors are attached to which
+coefficient and which coefficients have random components.
+
+## Combined Equation
+
+The combined equation substitutes the higher-level equations into the lower-level
+equation. This provides a compact view of the full model and helps users see how
+fixed effects, interactions, random effects, and residual terms enter the same
+model.
+
+The combined equation is also exported as raw LaTeX so it can be copied into a
+manuscript, dissertation, or Quarto document.
+
+## Tau Variance-Covariance Matrix
+
+The Tau matrix describes the variance-covariance structure of the random
+effects. In `mlmr`, the Tau display distinguishes:
+
+- random intercept variances;
+- random slope variances;
+- estimated covariances among random effects;
+- terms that are held fixed rather than estimated as random effects.
+
+The accompanying label table maps each matrix index, such as `u_0` or `u_1`, to
+the corresponding coefficient or predictor.
+
+## APA-Style Tables
+
+The **Results > Tables** tab includes APA-style displays for:
+
+- fixed effects;
+- dummy coding;
+- variance components;
+- intraclass correlations.
+
+The fixed-effects table includes estimates, standard errors, test statistics,
+p values, and 95% confidence intervals. The table output is designed for quick
+inspection in the app and for manuscript export.
+
+## Export Options
+
+The **Report & Code** tab exports several reproducible artifacts:
+
+- a Quarto-ready report (`.qmd`);
+- a reproducible R script (`.R`);
+- raw LaTeX for equations and tables (`.tex`);
+- separate APA table exports for Word-compatible, HTML, and LaTeX workflows.
+
+The intent is that every graphical decision in the app can be carried into a
+transparent reporting workflow.
+
+## Recommended Reporting Workflow
+
+1. Fit the model in the app.
+2. Review diagnostics and convergence warnings.
+3. Inspect the fixed-effects and variance-component tables.
+4. Review the level-by-level and combined equations.
+5. Export the Quarto report and raw LaTeX.
+6. Render the Quarto report to HTML, Word, or PDF.
+7. Edit the interpretation for the specific research question and manuscript
+   context.
+
+## Interpretation Caution
+
+`mlmr` helps users produce readable output, but it does not replace statistical
+judgment. Users should still evaluate model assumptions, convergence warnings,
+singular fits, distributional choices, centering decisions, missing data, and
+whether the random-effects structure is supported by the design and sample size.

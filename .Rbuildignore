@@ -1,6 +1,5 @@
 ^_pkgdown\.yml$
-^docs$
+^docs/quarto$
 ^pkgdown$
 ^ROADMAP\.md$
 ^\.github$
-^vignettes$

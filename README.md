@@ -23,6 +23,18 @@ export reproducible code and LaTeX.
 - Built-in HSB-style example data with preset model choices
 - Shiny interface plus reproducible R code, Quarto, and LaTeX export
 
+## Public Beta Feedback
+
+`mlmr` is ready for demo testing and early feedback. If you try the app, please
+open a GitHub issue with comments about the model-building workflow, equations,
+APA tables, diagnostics, generated code, or uploaded-data experience:
+
+<https://github.com/MarcusHarrisUConn/mlmr/issues>
+
+The most helpful feedback includes the model structure, whether you used the
+built-in example or uploaded data, screenshots of confusing output, and any
+generated code or error messages.
+
 ## Why mlmr?
 
 Mixed-effects and multilevel models are powerful, but many researchers learn
