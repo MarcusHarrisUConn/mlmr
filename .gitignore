@@ -1,0 +1,13 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rcheck/
+*.tar.gz
+*.log
+*.err.log
+.DS_Store
+Thumbs.db
+rsconnect/
+renv/library/
+renv/staging/
