@@ -54,7 +54,8 @@ workflow before uploading their own data.
 3. Review grouping factors and variable roles.
 4. Move to **Model** and inspect the preset outcome, predictors, centering, and
    random-effects choices.
-5. Move to **Estimate** and click **Fit Example Model**.
+5. Click **Fit Example Model** from **Data > Overview**, or move to
+   **Estimate** and click **Fit Example Model**.
 6. Open **Results** to review the dashboard, APA tables, equations,
    interpretation, diagnostics, and model comparison panels.
 7. Open **Report & Code** to export reproducible R code, raw LaTeX, APA tables,

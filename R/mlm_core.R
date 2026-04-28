@@ -352,6 +352,80 @@ assumption_points <- function(result) {
   )
 }
 
+model_readiness_table <- function(data, spec) {
+  rows <- list()
+  add <- function(status, item, detail) {
+    rows[[length(rows) + 1]] <<- data.frame(
+      Status = status,
+      Check = item,
+      Detail = detail,
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+  }
+  vars <- model_variables(spec)
+  missing_vars <- setdiff(vars, names(data))
+  if (length(missing_vars)) {
+    add("Stop", "Selected variables exist", paste("Missing from data:", paste(missing_vars, collapse = ", ")))
+  } else {
+    add("OK", "Selected variables exist", "All selected outcome, predictor, grouping, and interaction variables are present.")
+  }
+  if (!spec$outcome %in% names(data)) {
+    add("Stop", "Outcome", "Choose an outcome variable before fitting.")
+  } else if (identical(spec$distribution, "gaussian") && !is.numeric(data[[spec$outcome]])) {
+    add("Stop", "Outcome type", "Gaussian models require a numeric outcome.")
+  } else if (identical(spec$distribution, "binomial") && length(unique(stats::na.omit(data[[spec$outcome]]))) != 2) {
+    add("Stop", "Outcome type", "Binomial models require a two-category outcome.")
+  } else {
+    add("OK", "Outcome type", sprintf("%s is compatible with the selected %s model.", spec$outcome, spec$distribution))
+  }
+  groups <- unlist(spec$grouping, use.names = FALSE)
+  groups <- groups[nzchar(groups)]
+  if (!length(groups)) {
+    add("Stop", "Grouping factors", "Select at least one grouping factor.")
+  } else {
+    for (group in groups) {
+      if (!group %in% names(data)) next
+      n_group <- length(unique(stats::na.omit(data[[group]])))
+      if (n_group < 2) {
+        add("Stop", paste("Grouping:", group), "At least two groups are required for a random effect.")
+      } else if (n_group < 10) {
+        add("Warn", paste("Grouping:", group), sprintf("%s has %s groups; random effects may be unstable.", group, n_group))
+      } else {
+        add("OK", paste("Grouping:", group), sprintf("%s groups detected.", n_group))
+      }
+    }
+  }
+  random_slopes <- unique(unlist(lapply(spec$random, function(x) x$slopes %||% character())))
+  for (slope in random_slopes) {
+    if (!slope %in% names(data)) {
+      add("Stop", paste("Random slope:", slope), "Random-slope predictor is missing from the data.")
+    } else if (!is.numeric(data[[slope]])) {
+      add("Stop", paste("Random slope:", slope), "Random slopes should be numeric predictors.")
+    } else {
+      add("OK", paste("Random slope:", slope), "Numeric predictor selected for random-slope estimation.")
+    }
+  }
+  model_vars <- vars[vars %in% names(data)]
+  if (length(model_vars)) {
+    complete <- stats::complete.cases(data[, model_vars, drop = FALSE])
+    pct_missing <- 100 * mean(!complete)
+    if (pct_missing > 20) {
+      add("Warn", "Missing model data", sprintf("%.1f%% of rows have missing values on selected model variables.", pct_missing))
+    } else {
+      add("OK", "Missing model data", sprintf("%.1f%% of rows have missing values on selected model variables.", pct_missing))
+    }
+  }
+  if (!length(rows)) {
+    return(data.frame(Status = "Stop", Check = "Model readiness", Detail = "No checks could be run.", check.names = FALSE))
+  }
+  do.call(rbind, rows)
+}
+
+model_readiness_has_stops <- function(readiness) {
+  any(identical(readiness$Status, "Stop") | readiness$Status == "Stop")
+}
+
 missing_pattern_table <- function(data, spec, max_patterns = 12) {
   vars <- model_variables(spec)
   vars <- vars[vars %in% names(data)]

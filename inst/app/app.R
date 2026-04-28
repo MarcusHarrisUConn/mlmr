@@ -76,6 +76,11 @@ ui <- page_navbar(
         tabPanel(
           "Overview",
           br(),
+          card(
+            card_header("Try the Built-In Demo"),
+            p("Fit the preset example model to see tables, equations, diagnostics, and reproducible code in under a minute."),
+            actionButton("fit_demo_from_data", "Fit Example Model", class = "btn-primary")
+          ),
           card(card_header("Preview"), div(class = "scroll-table", tableOutput("data_preview")))
         ),
         tabPanel(
@@ -198,6 +203,11 @@ ui <- page_navbar(
       card(
         card_header("Estimation Choices"),
         tableOutput("estimation_preview")
+      ),
+      card(
+        card_header("Model Readiness"),
+        p("Review these checks before fitting uploaded data or a custom random-effects structure."),
+        div(class = "scroll-table", tableOutput("model_readiness_table"))
       ),
       card(
         card_header("Fit Status"),
@@ -702,6 +712,10 @@ server <- function(input, output, session) {
     )
   }, striped = TRUE, bordered = TRUE)
 
+  output$model_readiness_table <- renderTable({
+    model_readiness_table(data_reactive(), spec_reactive())
+  }, striped = TRUE, bordered = TRUE)
+
   output$model_missingness_table <- renderTable({
     model_missingness_table(data_reactive(), spec_reactive())
   }, striped = TRUE, bordered = TRUE)
@@ -720,6 +734,13 @@ server <- function(input, output, session) {
   })
 
   run_fit <- function(optimizer) {
+    readiness <- model_readiness_table(data_reactive(), spec_reactive())
+    if (model_readiness_has_stops(readiness)) {
+      fit_state(list(result = NULL, error = "Model readiness checks found issues that must be fixed before fitting.", optimizer = optimizer))
+      showNotification("Fix Model Readiness stop items before fitting.", type = "error")
+      updateNavbarPage(session, "main_nav", selected = "Estimate")
+      return(invisible(NULL))
+    }
     withProgress(message = "Fitting multilevel model", value = 0.4, {
       tryCatch(
         {
@@ -744,7 +765,7 @@ server <- function(input, output, session) {
     run_fit(input$optimizer)
   })
 
-  observeEvent(input$fit_example, {
+  run_example_fit <- function() {
     withProgress(message = "Fitting example model", value = 0.4, {
       tryCatch(
         {
@@ -790,6 +811,14 @@ server <- function(input, output, session) {
         }
       )
     })
+  }
+
+  observeEvent(input$fit_example, {
+    run_example_fit()
+  })
+
+  observeEvent(input$fit_demo_from_data, {
+    run_example_fit()
   })
 
   observeEvent(input$refit_model, {

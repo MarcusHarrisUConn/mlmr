@@ -7,6 +7,8 @@ center_predictors <- get_mlmr("center_predictors")
 mlm_fit <- get_mlmr("mlm_fit")
 mlm_latex_equations <- get_mlmr("mlm_latex_equations")
 tau_label_table <- get_mlmr("tau_label_table")
+model_readiness_table <- get_mlmr("model_readiness_table")
+model_readiness_has_stops <- get_mlmr("model_readiness_has_stops")
 apa_fixed_table <- get_mlmr("apa_fixed_table")
 apa_tables_latex_document <- get_mlmr("apa_tables_latex_document")
 apa_tables_html_document <- get_mlmr("apa_tables_html_document")
@@ -52,6 +54,15 @@ stopifnot(length(eq$tau) >= 1)
 tau_labels <- tau_label_table(fit)
 stopifnot(nrow(tau_labels) >= 1)
 stopifnot(all(c("Group", "Matrix Index", "Coefficient", "Estimated") %in% names(tau_labels)))
+
+readiness <- model_readiness_table(dat, spec)
+stopifnot(nrow(readiness) >= 1)
+stopifnot(!model_readiness_has_stops(readiness))
+
+bad_spec <- spec
+bad_spec$outcome <- "schoolid"
+bad_readiness <- model_readiness_table(dat, bad_spec)
+stopifnot(model_readiness_has_stops(bad_readiness))
 
 fixed_tab <- apa_fixed_table(fit$fit)
 stopifnot(nrow(fixed_tab) >= 1)

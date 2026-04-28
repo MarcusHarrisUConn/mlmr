@@ -28,7 +28,8 @@ mlmr::run_mlmr()
    and variable roles.
 4. Open **Model** and review the preset outcome, predictors, centering choices,
    interactions, and random effects.
-5. Open **Estimate** and click **Fit Example Model**.
+5. Click **Fit Example Model** from **Data > Overview**, or open **Estimate**
+   and click **Fit Example Model**.
 6. Open **Results > Tables** and inspect the APA-style tables.
 7. Open **Results > Equations** and inspect the level-by-level equations,
    combined equation, and Tau matrix.
@@ -46,6 +47,7 @@ Please pay attention to:
 - whether APA tables are useful;
 - whether the exported R code reproduces what the app did;
 - whether uploaded data are easy to use;
+- whether the **Model Readiness** checklist catches problems before fitting;
 - whether diagnostics and warnings are interpretable.
 
 ## Feedback
