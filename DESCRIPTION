@@ -6,6 +6,8 @@ Author: Marcus Harris [aut, cre]
 Maintainer: Marcus Harris <example@example.com>
 Description: A Shiny interface and R toolkit for fitting, understanding, and reporting mixed-effects and multilevel models with lme4. The package supports centering decisions, nested and flexible random-effects structures, equations, APA-style tables, diagnostics, and reproducible code.
 License: MIT + file LICENSE
+URL: https://github.com/MarcusHarrisUConn/mlmr
+BugReports: https://github.com/MarcusHarrisUConn/mlmr/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
