@@ -498,8 +498,9 @@ pre {
 }
 
 [data-bs-theme="dark"] .navbar {
-  background: #0d151d;
-  border-bottom-color: #344b5e;
+  background: #0d151d !important;
+  border-bottom-color: #344b5e !important;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.34);
 }
 
 [data-bs-theme="dark"] .navbar .nav-link,
@@ -508,8 +509,9 @@ pre {
 }
 
 [data-bs-theme="dark"] .navbar .navbar-toggler {
-  background: #1d2b36;
-  border-color: #8eb7c3;
+  background: #1d2b36 !important;
+  border-color: #8eb7c3 !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.32);
   color: #edf3f5 !important;
 }
 
