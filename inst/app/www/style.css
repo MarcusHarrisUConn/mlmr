@@ -29,7 +29,7 @@ body {
 }
 
 .navbar {
-  background: var(--mlmr-surface);
+  background: #f0e4cf !important;
   border-bottom: 1px solid var(--mlmr-line);
   box-shadow: 0 1px 8px rgba(35, 57, 91, 0.08);
 }
@@ -71,21 +71,35 @@ body {
 }
 
 .navbar .navbar-toggler {
-  background: #e1d2b8;
-  border: 2px solid #8a6728;
-  box-shadow: 0 1px 4px rgba(23, 35, 47, 0.16);
-  padding: 5px 8px;
+  align-items: center;
+  background: #17232f !important;
+  border: 2px solid #17232f !important;
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(23, 35, 47, 0.28);
+  color: #ffffff !important;
+  display: inline-flex;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.navbar .navbar-toggler::before {
+  color: #ffffff;
+  content: "Menu";
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .navbar .navbar-toggler:focus {
-  box-shadow: 0 0 0 0.2rem rgba(138, 103, 40, 0.28);
+  box-shadow: 0 0 0 0.22rem rgba(23, 35, 47, 0.28);
 }
 
 .navbar .navbar-toggler-icon {
-  background: #17232f !important;
+  background: #ffffff !important;
   background-image: none !important;
   border-radius: 999px;
-  box-shadow: 0 -8px 0 #17232f, 0 8px 0 #17232f;
+  box-shadow: 0 -8px 0 #ffffff, 0 8px 0 #ffffff;
   display: block;
   height: 3px;
   margin: 9px 2px;
@@ -496,6 +510,11 @@ pre {
 [data-bs-theme="dark"] .navbar .navbar-toggler {
   background: #1d2b36;
   border-color: #8eb7c3;
+  color: #edf3f5 !important;
+}
+
+[data-bs-theme="dark"] .navbar .navbar-toggler::before {
+  color: #edf3f5;
 }
 
 [data-bs-theme="dark"] .navbar .navbar-toggler-icon {
