@@ -169,8 +169,8 @@ ui <- page_navbar(
             card(card_header("Working Formula"), verbatimTextOutput("formula_preview"))
           ),
           card(
-            card_header("Predictors by Level"),
-            div(class = "mode-note", "Levels are inferred from variation within the primary grouping factor. Variables that vary within groups are treated as Level 1; variables that are constant within groups are treated as higher-level/contextual predictors."),
+            card_header("Declared Predictors by Level"),
+            div(class = "mode-note", "Place predictors into the level where they belong conceptually. The variation check is a warning aid only; it does not decide the level for you."),
             div(class = "scroll-table", tableOutput("predictor_level_table"))
           )
         ),
@@ -178,7 +178,7 @@ ui <- page_navbar(
           "Fixed Effects",
           br(),
           card(
-            card_header("Selected Predictors by Level"),
+            card_header("Declared Predictors by Level"),
             div(class = "scroll-table", tableOutput("predictor_level_table_fixed"))
           ),
           card(card_header("Fixed Effects Preview"), tableOutput("fixed_preview")),
@@ -191,7 +191,7 @@ ui <- page_navbar(
             col_widths = c(5, 7),
             card(card_header("Random Effects Structure"), verbatimTextOutput("random_preview")),
             card(
-              card_header("Random-Effects Tau Template"),
+              card_header("Optional Tau Matrix Preview"),
               uiOutput("vcov_template_note"),
               plotOutput("vcov_template", height = "360px")
             )
@@ -287,7 +287,8 @@ ui <- page_navbar(
             ),
             div(
               class = "results-page",
-              card(card_header("Diagnostics"), tableOutput("diagnostics_table")),
+                    uiOutput("diagnostics_loading_banner"),
+                    card(card_header("Diagnostics"), tableOutput("diagnostics_table")),
               layout_columns(
                 col_widths = c(6, 6),
                 card(card_header("Residuals vs Fitted"), uiOutput("residual_fitted_loading"), plotOutput("residual_fitted_plot", height = "340px")),
@@ -526,15 +527,40 @@ server <- function(input, output, session) {
   output$fixed_selector <- renderUI({
     dat <- data_reactive()
     choices <- setdiff(names(dat), c(input$outcome, input$grouping_vars))
-    selected <- intersect(c("ses", "priorachieve", "homework", "meanses", "climate", "schoolsize", "sector", "female", "minority"), choices)
-    selectizeInput("fixed_terms", "Predictors", choices = choices, selected = selected, multiple = TRUE, options = list(plugins = list("remove_button")))
+    tagList(
+      div(class = "mode-note", "Assign predictors to the level where they belong in the design. These selections become the fixed effects in the model."),
+      selectizeInput("level1_terms", "Level 1 predictors", choices = choices, selected = intersect(c("ses", "priorachieve", "homework", "female", "minority"), choices), multiple = TRUE, options = list(plugins = list("remove_button"))),
+      selectizeInput("level2_terms", "Level 2 predictors", choices = choices, selected = intersect(c("meanses", "climate", "schoolsize", "sector"), choices), multiple = TRUE, options = list(plugins = list("remove_button"))),
+      selectizeInput("level3_terms", "Level 3 predictors", choices = choices, selected = character(), multiple = TRUE, options = list(plugins = list("remove_button")))
+    )
   })
+
+  selected_fixed_terms <- reactive({
+    unique(c(input$level1_terms %||% character(), input$level2_terms %||% character(), input$level3_terms %||% character()))
+  })
+
+  predictor_level_spec <- reactive({
+    list(
+      `Level 1` = input$level1_terms %||% character(),
+      `Level 2` = input$level2_terms %||% character(),
+      `Level 3` = input$level3_terms %||% character()
+    )
+  })
+
+  update_level_terms <- function(level1 = character(), level2 = character(), level3 = character()) {
+    updateSelectizeInput(session, "level1_terms", selected = level1)
+    updateSelectizeInput(session, "level2_terms", selected = level2)
+    updateSelectizeInput(session, "level3_terms", selected = level3)
+  }
 
   observeEvent(input$binary_preset, {
     updateSelectInput(session, "outcome", selected = "passmath")
     updateSelectInput(session, "distribution", selected = "binomial")
     updateSelectInput(session, "link", selected = "logit")
-    updateSelectizeInput(session, "fixed_terms", selected = c("ses", "priorachieve", "homework", "meanses", "climate", "sector", "female", "minority"))
+    update_level_terms(
+      level1 = c("ses", "priorachieve", "homework", "female", "minority"),
+      level2 = c("meanses", "climate", "sector")
+    )
     updateSelectInput(session, "random_slopes", selected = "ses")
     showNotification("Binary logistic mixed-model preset selected.", type = "message")
   })
@@ -543,7 +569,10 @@ server <- function(input, output, session) {
     updateSelectInput(session, "outcome", selected = "absences")
     updateSelectInput(session, "distribution", selected = "poisson")
     updateSelectInput(session, "link", selected = "log")
-    updateSelectizeInput(session, "fixed_terms", selected = c("ses", "priorachieve", "homework", "meanses", "climate", "sector", "female", "minority"))
+    update_level_terms(
+      level1 = c("ses", "priorachieve", "homework", "female", "minority"),
+      level2 = c("meanses", "climate", "sector")
+    )
     updateSelectInput(session, "random_slopes", selected = "ses")
     showNotification("Poisson count mixed-model preset selected.", type = "message")
   })
@@ -554,54 +583,55 @@ server <- function(input, output, session) {
       showNotification("Keep editing the current custom model.", type = "message")
       return()
     }
-    common_fixed <- c("ses", "priorachieve", "homework", "meanses", "climate", "schoolsize", "sector", "female", "minority")
+    common_level1 <- c("ses", "priorachieve", "homework", "female", "minority")
+    common_level2 <- c("meanses", "climate", "schoolsize", "sector")
     updateSelectInput(session, "outcome", selected = "mathscore")
     updateSelectInput(session, "distribution", selected = "gaussian")
     updateSelectInput(session, "link", selected = "identity")
     updateCheckboxInput(session, "reml", value = TRUE)
     updateSelectInput(session, "structure_type", selected = "nested")
     updateTextInput(session, "nesting_text", value = "students %in% schools")
-    updateSelectizeInput(session, "fixed_terms", selected = common_fixed)
+    update_level_terms(level1 = common_level1, level2 = common_level2)
     updateTextInput(session, "interactions", value = "")
     updateSelectInput(session, "random_slopes", selected = character())
     updateCheckboxInput(session, "random_correlation", value = TRUE)
     updateCheckboxGroupInput(session, "random_intercept_groups", selected = input$grouping_vars %||% c("schoolid", "districtid"))
     if (identical(preset, "null")) {
-      updateSelectizeInput(session, "fixed_terms", selected = character())
+      update_level_terms()
     } else if (identical(preset, "random_intercept")) {
-      updateSelectizeInput(session, "fixed_terms", selected = c("ses", "meanses", "sector"))
+      update_level_terms(level1 = "ses", level2 = c("meanses", "sector"))
     } else if (identical(preset, "random_slope")) {
-      updateSelectizeInput(session, "fixed_terms", selected = c("ses", "priorachieve", "homework", "meanses", "sector"))
+      update_level_terms(level1 = c("ses", "priorachieve", "homework"), level2 = c("meanses", "sector"))
       updateSelectInput(session, "random_slopes", selected = c("ses"))
     } else if (identical(preset, "cross_level")) {
-      updateSelectizeInput(session, "fixed_terms", selected = common_fixed)
+      update_level_terms(level1 = common_level1, level2 = common_level2)
       updateSelectInput(session, "random_slopes", selected = c("ses", "homework"))
       updateTextInput(session, "interactions", value = "ses:sector, homework:climate")
     } else if (identical(preset, "three_level")) {
       updateSelectInput(session, "structure_type", selected = "nested")
       updateTextInput(session, "nesting_text", value = "students %in% schools %in% districts")
       updateSelectInput(session, "grouping_vars", selected = c("schoolid", "districtid"))
-      updateSelectizeInput(session, "fixed_terms", selected = common_fixed)
+      update_level_terms(level1 = common_level1, level2 = c("meanses", "climate", "sector"), level3 = "schoolsize")
       updateSelectInput(session, "random_slopes", selected = c("ses", "homework"))
     } else if (identical(preset, "crossed")) {
       updateSelectInput(session, "structure_type", selected = "crossed")
       updateTextInput(session, "nesting_text", value = "students crossed by schools and teachers")
       updateSelectInput(session, "grouping_vars", selected = c("schoolid", "teacherid"))
-      updateSelectizeInput(session, "fixed_terms", selected = c("ses", "priorachieve", "homework", "meanses", "sector", "female", "minority"))
+      update_level_terms(level1 = c("ses", "priorachieve", "homework", "female", "minority"), level2 = c("meanses", "sector"))
       updateSelectInput(session, "random_slopes", selected = c("ses"))
     } else if (identical(preset, "logistic")) {
       updateCheckboxInput(session, "advanced_mode", value = TRUE)
       updateSelectInput(session, "outcome", selected = "passmath")
       updateSelectInput(session, "distribution", selected = "binomial")
       updateSelectInput(session, "link", selected = "logit")
-      updateSelectizeInput(session, "fixed_terms", selected = c("ses", "priorachieve", "homework", "meanses", "climate", "sector", "female", "minority"))
+      update_level_terms(level1 = c("ses", "priorachieve", "homework", "female", "minority"), level2 = c("meanses", "climate", "sector"))
       updateSelectInput(session, "random_slopes", selected = "ses")
     } else if (identical(preset, "poisson")) {
       updateCheckboxInput(session, "advanced_mode", value = TRUE)
       updateSelectInput(session, "outcome", selected = "absences")
       updateSelectInput(session, "distribution", selected = "poisson")
       updateSelectInput(session, "link", selected = "log")
-      updateSelectizeInput(session, "fixed_terms", selected = c("ses", "priorachieve", "homework", "meanses", "climate", "sector", "female", "minority"))
+      update_level_terms(level1 = c("ses", "priorachieve", "homework", "female", "minority"), level2 = c("meanses", "climate", "sector"))
       updateSelectInput(session, "random_slopes", selected = "ses")
     }
     showNotification(sprintf("%s template applied.", names(which(c(
@@ -628,7 +658,7 @@ server <- function(input, output, session) {
 
   output$centering_controls <- renderUI({
     dat <- data_reactive()
-    terms <- input$fixed_terms %||% character()
+    terms <- selected_fixed_terms()
     numeric_terms <- terms[terms %in% numeric_vars(dat)]
     if (!length(numeric_terms)) return(p("No numeric predictors selected for centering."))
     tagList(lapply(numeric_terms, function(term) {
@@ -638,7 +668,7 @@ server <- function(input, output, session) {
 
   fixed_spec <- reactive({
     dat <- data_reactive()
-    terms <- input$fixed_terms %||% character()
+    terms <- selected_fixed_terms()
     out <- lapply(terms, function(term) {
       center <- if (term %in% numeric_vars(dat)) input[[paste0("center_", term)]] %||% "none" else "none"
       list(center = center)
@@ -689,6 +719,7 @@ server <- function(input, output, session) {
       structure = input$structure_type %||% "nested",
       random = random_spec(),
       interactions = interaction_spec(),
+      predictor_levels = predictor_level_spec(),
       data = data_reactive()
     )
   })
@@ -1132,7 +1163,9 @@ server <- function(input, output, session) {
   output$diagnostics_table <- renderTable({
     res <- active_result()
     req(res)
-    mlm_diagnostics(res$fit)
+    withProgress(message = "Preparing diagnostics", value = 0.35, {
+      mlm_diagnostics(res$fit)
+    })
   }, striped = TRUE, bordered = TRUE)
 
   output$diagnostic_x_selector <- renderUI({
@@ -1162,6 +1195,16 @@ server <- function(input, output, session) {
   output$random_effects_loading <- renderUI(diagnostic_loading("Estimating random-effect intervals..."))
   output$model_lines_loading <- renderUI(diagnostic_loading("Preparing group-specific model lines..."))
 
+  output$diagnostics_loading_banner <- renderUI({
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    div(
+      class = "diagnostics-progress",
+      div(class = "diagnostics-progress-text", "Preparing diagnostics. Larger random-effect models can take a few seconds."),
+      div(class = "diagnostics-progress-track", div(class = "diagnostics-progress-bar"))
+    )
+  })
+
   diagnostic_df <- reactive({
     res <- active_result()
     req(res)
@@ -1176,69 +1219,80 @@ server <- function(input, output, session) {
   })
 
   output$residual_fitted_plot <- renderPlot({
-    df <- diagnostic_df()
-    ggplot(df, aes(fitted, residual)) +
-      geom_hline(yintercept = 0, color = "#8a969c") +
-      geom_point(alpha = 0.62, color = "#245a73") +
-      geom_smooth(method = "loess", se = FALSE, color = "#8b3f2f", linewidth = 0.8) +
-      labs(x = "Fitted values", y = "Residuals") +
-      theme_minimal(base_size = 12)
+    withProgress(message = "Drawing residual diagnostics", value = 0.4, {
+      df <- diagnostic_df()
+      ggplot(df, aes(fitted, residual)) +
+        geom_hline(yintercept = 0, color = "#8a969c") +
+        geom_point(alpha = 0.62, color = "#245a73") +
+        geom_smooth(method = "loess", se = FALSE, color = "#8b3f2f", linewidth = 0.8) +
+        labs(x = "Fitted values", y = "Residuals") +
+        theme_minimal(base_size = 12)
+    })
   })
 
   output$qq_plot <- renderPlot({
-    df <- diagnostic_df()
-    ggplot(df, aes(sample = residual)) +
-      stat_qq(color = "#245a73", alpha = 0.7) +
-      stat_qq_line(color = "#8b3f2f", linewidth = 0.8) +
-      labs(x = "Theoretical quantiles", y = "Sample residual quantiles") +
-      theme_minimal(base_size = 12)
+    withProgress(message = "Drawing QQ plot", value = 0.4, {
+      df <- diagnostic_df()
+      ggplot(df, aes(sample = residual)) +
+        stat_qq(color = "#245a73", alpha = 0.7) +
+        stat_qq_line(color = "#8b3f2f", linewidth = 0.8) +
+        labs(x = "Theoretical quantiles", y = "Sample residual quantiles") +
+        theme_minimal(base_size = 12)
+    })
   })
 
   output$observed_fitted_plot <- renderPlot({
-    df <- diagnostic_df()
-    rng <- range(c(df$observed, df$fitted), na.rm = TRUE)
-    ggplot(df, aes(fitted, observed)) +
-      geom_abline(intercept = 0, slope = 1, color = "#8a969c") +
-      geom_point(alpha = 0.62, color = "#245a73") +
-      coord_equal(xlim = rng, ylim = rng) +
-      labs(x = "Fitted values", y = "Observed values") +
-      theme_minimal(base_size = 12)
+    withProgress(message = "Drawing observed versus fitted plot", value = 0.4, {
+      df <- diagnostic_df()
+      rng <- range(c(df$observed, df$fitted), na.rm = TRUE)
+      ggplot(df, aes(fitted, observed)) +
+        geom_abline(intercept = 0, slope = 1, color = "#8a969c") +
+        geom_point(alpha = 0.62, color = "#245a73") +
+        coord_equal(xlim = rng, ylim = rng) +
+        labs(x = "Fitted values", y = "Observed values") +
+        theme_minimal(base_size = 12)
+    })
   })
 
   output$random_effects_interval_plot <- renderPlot({
-    res <- active_result()
-    req(res)
-    re <- as.data.frame(lme4::ranef(res$fit, condVar = TRUE))
-    req(nrow(re) > 0)
-    term <- "(Intercept)"
-    if (!term %in% re$term) term <- first_or(unique(re$term))
-    plot_df <- re[re$term == term, , drop = FALSE]
-    plot_df <- plot_df[order(plot_df$condval), , drop = FALSE]
-    plot_df$grp <- factor(plot_df$grp, levels = plot_df$grp)
-    plot_df$low <- plot_df$condval - 1.96 * plot_df$condsd
-    plot_df$high <- plot_df$condval + 1.96 * plot_df$condsd
-    ggplot(plot_df, aes(condval, grp)) +
-      geom_vline(xintercept = 0, color = "#8a969c") +
-      geom_errorbarh(aes(xmin = low, xmax = high), height = 0, color = "#6b7a83") +
-      geom_point(color = "#245a73", size = 2) +
-      labs(x = paste("Empirical Bayes estimate:", term), y = NULL) +
-      theme_minimal(base_size = 12)
+    withProgress(message = "Estimating random-effect intervals", value = 0.25, {
+      res <- active_result()
+      req(res)
+      re <- as.data.frame(lme4::ranef(res$fit, condVar = TRUE))
+      incProgress(0.55)
+      req(nrow(re) > 0)
+      term <- "(Intercept)"
+      if (!term %in% re$term) term <- first_or(unique(re$term))
+      plot_df <- re[re$term == term, , drop = FALSE]
+      plot_df <- plot_df[order(plot_df$condval), , drop = FALSE]
+      plot_df$grp <- factor(plot_df$grp, levels = plot_df$grp)
+      plot_df$low <- plot_df$condval - 1.96 * plot_df$condsd
+      plot_df$high <- plot_df$condval + 1.96 * plot_df$condsd
+      ggplot(plot_df, aes(condval, grp)) +
+        geom_vline(xintercept = 0, color = "#8a969c") +
+        geom_errorbarh(aes(xmin = low, xmax = high), height = 0, color = "#6b7a83") +
+        geom_point(color = "#245a73", size = 2) +
+        labs(x = paste("Empirical Bayes estimate:", term), y = NULL) +
+        theme_minimal(base_size = 12)
+    })
   })
 
   output$model_lines_plot <- renderPlot({
-    res <- active_result()
-    req(res, input$diagnostic_x, input$diagnostic_group)
-    df <- diagnostic_df()
-    req(input$diagnostic_x %in% names(df), input$diagnostic_group %in% names(df))
-    group_counts <- sort(table(df[[input$diagnostic_group]]), decreasing = TRUE)
-    keep <- names(group_counts)[seq_len(min(8, length(group_counts)))]
-    plot_df <- df[df[[input$diagnostic_group]] %in% keep, , drop = FALSE]
-    plot_df <- plot_df[order(plot_df[[input$diagnostic_group]], plot_df[[input$diagnostic_x]]), , drop = FALSE]
-    ggplot(plot_df, aes(x = .data[[input$diagnostic_x]], y = observed, color = .data[[input$diagnostic_group]])) +
-      geom_point(alpha = 0.45) +
-      geom_line(aes(y = fitted, group = .data[[input$diagnostic_group]]), linewidth = 0.9) +
-      labs(x = input$diagnostic_x, y = res$spec$outcome, color = input$diagnostic_group) +
-      theme_minimal(base_size = 12)
+    withProgress(message = "Preparing group-specific model lines", value = 0.35, {
+      res <- active_result()
+      req(res, input$diagnostic_x, input$diagnostic_group)
+      df <- diagnostic_df()
+      req(input$diagnostic_x %in% names(df), input$diagnostic_group %in% names(df))
+      group_counts <- sort(table(df[[input$diagnostic_group]]), decreasing = TRUE)
+      keep <- names(group_counts)[seq_len(min(8, length(group_counts)))]
+      plot_df <- df[df[[input$diagnostic_group]] %in% keep, , drop = FALSE]
+      plot_df <- plot_df[order(plot_df[[input$diagnostic_group]], plot_df[[input$diagnostic_x]]), , drop = FALSE]
+      ggplot(plot_df, aes(x = .data[[input$diagnostic_x]], y = observed, color = .data[[input$diagnostic_group]])) +
+        geom_point(alpha = 0.45) +
+        geom_line(aes(y = fitted, group = .data[[input$diagnostic_group]]), linewidth = 0.9) +
+        labs(x = input$diagnostic_x, y = res$spec$outcome, color = input$diagnostic_group) +
+        theme_minimal(base_size = 12)
+    })
   })
 
   output$model_compare_table <- renderTable({

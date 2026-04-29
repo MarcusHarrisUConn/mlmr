@@ -170,7 +170,7 @@ predictor_level_table <- function(data, spec) {
     return(data.frame(
       Predictor = character(),
       `Model Role` = character(),
-      `Suggested Level` = character(),
+      `Declared Level` = character(),
       Centering = character(),
       `Within-Group Variation` = character(),
       check.names = FALSE
@@ -179,19 +179,10 @@ predictor_level_table <- function(data, spec) {
 
   groups <- unlist(spec$grouping, use.names = FALSE)
   primary_group <- first_or(groups)
-  infer_level <- function(var) {
-    if (!var %in% names(data)) return("Not found in data")
-    if (is.null(primary_group) || !primary_group %in% names(data)) return("Unclassified")
-    within_counts <- stats::aggregate(
-      data[[var]],
-      list(group = data[[primary_group]]),
-      function(x) length(unique(x[!is.na(x)]))
-    )$x
-    if (all(within_counts <= 1, na.rm = TRUE)) {
-      sprintf("Level 2 / %s-level", primary_group)
-    } else {
-      "Level 1 / observation-level"
-    }
+  declared_levels <- spec$predictor_levels %||% list()
+  declared_level <- function(var) {
+    hit <- names(Filter(function(x) var %in% x, declared_levels))
+    if (length(hit)) hit[[1]] else "Not assigned"
   }
   within_text <- function(var) {
     if (!var %in% names(data) || is.null(primary_group) || !primary_group %in% names(data)) return("Not checked")
@@ -211,7 +202,7 @@ predictor_level_table <- function(data, spec) {
   data.frame(
     Predictor = fixed,
     `Model Role` = ifelse(fixed %in% interaction_components, "Fixed effect + interaction component", "Fixed effect"),
-    `Suggested Level` = vapply(fixed, infer_level, character(1)),
+    `Declared Level` = vapply(fixed, declared_level, character(1)),
     Centering = vapply(fixed, function(x) spec$fixed[[x]]$center %||% "none", character(1)),
     `Within-Group Variation` = vapply(fixed, within_text, character(1)),
     check.names = FALSE,
@@ -543,7 +534,7 @@ imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed
 
 mlm_spec <- function(outcome, distribution = "gaussian", link = "identity", fixed = list(),
                      grouping = list(), nesting = NULL, structure = "nested", random = list(),
-                     interactions = list(), data = NULL) {
+                     interactions = list(), predictor_levels = list(), data = NULL) {
   structure(
     list(
       outcome = outcome,
@@ -555,6 +546,7 @@ mlm_spec <- function(outcome, distribution = "gaussian", link = "identity", fixe
       structure = structure,
       random = random,
       interactions = interactions,
+      predictor_levels = predictor_levels,
       data = data
     ),
     class = "mlm_spec"

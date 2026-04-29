@@ -70,6 +70,20 @@ body {
   color: var(--mlmr-ink) !important;
 }
 
+.navbar .navbar-toggler {
+  background: #efe7d8;
+  border-color: var(--mlmr-gold);
+  box-shadow: none;
+}
+
+.navbar .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.18rem rgba(182, 141, 64, 0.24);
+}
+
+.navbar .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23264653' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+}
+
 .card {
   border-radius: 8px;
   border-color: var(--mlmr-line);
@@ -413,6 +427,46 @@ pre {
   }
 }
 
+.diagnostics-progress {
+  background: var(--mlmr-surface);
+  border: 1px solid var(--mlmr-line);
+  border-radius: 8px;
+  color: var(--mlmr-muted);
+  margin-bottom: 12px;
+  padding: 12px 14px;
+}
+
+.diagnostics-progress-text {
+  font-size: 0.92rem;
+  margin-bottom: 8px;
+}
+
+.diagnostics-progress-track {
+  background: #ece4d6;
+  border-radius: 999px;
+  height: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.diagnostics-progress-bar {
+  animation: mlmr-progress-slide 1.15s ease-in-out infinite;
+  background: linear-gradient(90deg, var(--mlmr-gold), var(--mlmr-teal));
+  border-radius: inherit;
+  height: 100%;
+  position: absolute;
+  width: 42%;
+}
+
+@keyframes mlmr-progress-slide {
+  0% {
+    left: -42%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 [data-bs-theme="dark"] body {
   background:
     linear-gradient(180deg, rgba(35, 57, 91, 0.38), rgba(16, 24, 32, 0.84) 280px),
@@ -428,6 +482,15 @@ pre {
 [data-bs-theme="dark"] .navbar .nav-link,
 [data-bs-theme="dark"] .navbar-brand {
   color: #edf3f5 !important;
+}
+
+[data-bs-theme="dark"] .navbar .navbar-toggler {
+  background: #1d2b36;
+  border-color: #8eb7c3;
+}
+
+[data-bs-theme="dark"] .navbar .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23d7e6e8' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
 }
 
 [data-bs-theme="dark"] .navbar .nav-link:hover,
@@ -586,4 +649,18 @@ pre {
 [data-bs-theme="dark"] .loading-dot {
   border-color: #344b5e;
   border-top-color: #8eb7c3;
+}
+
+[data-bs-theme="dark"] .diagnostics-progress {
+  background: #17232d;
+  border-color: #344b5e;
+  color: #cdd8dd;
+}
+
+[data-bs-theme="dark"] .diagnostics-progress-track {
+  background: #223442;
+}
+
+[data-bs-theme="dark"] .diagnostics-progress-bar {
+  background: linear-gradient(90deg, #8eb7c3, #caa85d);
 }
