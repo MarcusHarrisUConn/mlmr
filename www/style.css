@@ -71,17 +71,21 @@ body {
 }
 
 .navbar .navbar-toggler {
-  background: #efe7d8;
-  border-color: var(--mlmr-gold);
-  box-shadow: none;
+  background: #e1d2b8;
+  border: 2px solid #8a6728;
+  box-shadow: 0 1px 4px rgba(23, 35, 47, 0.16);
+  padding: 5px 8px;
 }
 
 .navbar .navbar-toggler:focus {
-  box-shadow: 0 0 0 0.18rem rgba(182, 141, 64, 0.24);
+  box-shadow: 0 0 0 0.2rem rgba(138, 103, 40, 0.28);
 }
 
 .navbar .navbar-toggler-icon {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23264653' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  filter: none;
+  opacity: 1;
+  --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%2317232f' stroke-linecap='round' stroke-miterlimit='10' stroke-width='3.2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  background-image: var(--bs-navbar-toggler-icon-bg);
 }
 
 .card {
