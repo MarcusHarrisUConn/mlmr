@@ -167,11 +167,20 @@ ui <- page_navbar(
             col_widths = c(5, 7),
             card(card_header("Model Builder Summary"), tableOutput("model_builder_summary")),
             card(card_header("Working Formula"), verbatimTextOutput("formula_preview"))
+          ),
+          card(
+            card_header("Predictors by Level"),
+            div(class = "mode-note", "Levels are inferred from variation within the primary grouping factor. Variables that vary within groups are treated as Level 1; variables that are constant within groups are treated as higher-level/contextual predictors."),
+            div(class = "scroll-table", tableOutput("predictor_level_table"))
           )
         ),
         tabPanel(
           "Fixed Effects",
           br(),
+          card(
+            card_header("Selected Predictors by Level"),
+            div(class = "scroll-table", tableOutput("predictor_level_table_fixed"))
+          ),
           card(card_header("Fixed Effects Preview"), tableOutput("fixed_preview")),
           card(card_header("Available Variables"), uiOutput("variable_palette"))
         ),
@@ -181,7 +190,11 @@ ui <- page_navbar(
           layout_columns(
             col_widths = c(5, 7),
             card(card_header("Random Effects Structure"), verbatimTextOutput("random_preview")),
-            card(card_header("Variance-Covariance Template"), plotOutput("vcov_template", height = "360px"))
+            card(
+              card_header("Random-Effects Tau Template"),
+              uiOutput("vcov_template_note"),
+              plotOutput("vcov_template", height = "360px")
+            )
           )
         )
       )
@@ -694,6 +707,14 @@ server <- function(input, output, session) {
     model_builder_summary(spec_reactive())
   }, striped = TRUE, bordered = TRUE)
 
+  output$predictor_level_table <- renderTable({
+    predictor_level_table(data_reactive(), spec_reactive())
+  }, striped = TRUE, bordered = TRUE)
+
+  output$predictor_level_table_fixed <- renderTable({
+    predictor_level_table(data_reactive(), spec_reactive())
+  }, striped = TRUE, bordered = TRUE)
+
   output$formula_preview <- renderText({
     paste(deparse(build_formula(spec_reactive())), collapse = "\n")
   })
@@ -729,16 +750,40 @@ server <- function(input, output, session) {
 
   output$vcov_template <- renderPlot({
     rand <- random_spec()
-    slopes <- if (length(rand)) rand[[1]]$slopes else character()
-    labels <- c(if (isTRUE(input$random_intercept)) "Intercept", slopes)
+    focus <- input$random_group_focus %||% input$primary_group %||% first_or(names(rand))
+    block <- rand[[focus]] %||% first_or(rand)
+    req(!is.null(block))
+    slopes <- block$slopes %||% character()
+    labels <- c(if (isTRUE(block$intercept)) "Intercept", slopes)
     req(length(labels))
     grid <- expand.grid(row = labels, col = labels)
-    grid$value <- if (isTRUE(input$random_correlation)) 1 else as.numeric(grid$row == grid$col)
+    grid$value <- if (isTRUE(block$correlation)) 1 else as.numeric(grid$row == grid$col)
+    grid$label <- mapply(function(row, col) {
+      i <- match(row, labels) - 1
+      j <- match(col, labels) - 1
+      if (row == col) return(sprintf("tau[%s%s]", i, j))
+      if (isTRUE(block$correlation)) sprintf("tau[%s%s]", max(i, j), min(i, j)) else "0"
+    }, grid$row, grid$col, USE.NAMES = FALSE)
     ggplot(grid, aes(col, row, fill = value)) +
       geom_tile(color = "white") +
+      geom_text(aes(label = label), size = 4, color = "#20323a", parse = TRUE) +
       scale_fill_gradient(low = "#eef3f5", high = "#245a73", guide = "none") +
       labs(x = NULL, y = NULL) +
       theme_minimal(base_size = 13)
+  })
+
+  output$vcov_template_note <- renderUI({
+    rand <- random_spec()
+    focus <- input$random_group_focus %||% input$primary_group %||% first_or(names(rand))
+    block <- rand[[focus]] %||% first_or(rand)
+    if (is.null(block)) return(NULL)
+    div(
+      class = "mode-note",
+      sprintf(
+        "Preview for %s. Shaded cells are estimated random-effect variances/covariances; zeros are held fixed when independent random effects are selected. Fitted estimates appear in Results > Tables and Results > Equations.",
+        focus %||% "the selected grouping factor"
+      )
+    )
   })
 
   output$estimation_preview <- renderTable({

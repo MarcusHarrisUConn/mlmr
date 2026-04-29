@@ -164,6 +164,61 @@ model_builder_summary <- function(spec) {
   )
 }
 
+predictor_level_table <- function(data, spec) {
+  fixed <- names(spec$fixed)
+  if (!length(fixed)) {
+    return(data.frame(
+      Predictor = character(),
+      `Model Role` = character(),
+      `Suggested Level` = character(),
+      Centering = character(),
+      `Within-Group Variation` = character(),
+      check.names = FALSE
+    ))
+  }
+
+  groups <- unlist(spec$grouping, use.names = FALSE)
+  primary_group <- first_or(groups)
+  infer_level <- function(var) {
+    if (!var %in% names(data)) return("Not found in data")
+    if (is.null(primary_group) || !primary_group %in% names(data)) return("Unclassified")
+    within_counts <- stats::aggregate(
+      data[[var]],
+      list(group = data[[primary_group]]),
+      function(x) length(unique(x[!is.na(x)]))
+    )$x
+    if (all(within_counts <= 1, na.rm = TRUE)) {
+      sprintf("Level 2 / %s-level", primary_group)
+    } else {
+      "Level 1 / observation-level"
+    }
+  }
+  within_text <- function(var) {
+    if (!var %in% names(data) || is.null(primary_group) || !primary_group %in% names(data)) return("Not checked")
+    within_counts <- stats::aggregate(
+      data[[var]],
+      list(group = data[[primary_group]]),
+      function(x) length(unique(x[!is.na(x)]))
+    )$x
+    if (all(within_counts <= 1, na.rm = TRUE)) {
+      sprintf("Constant within %s", primary_group)
+    } else {
+      sprintf("Varies within %s", primary_group)
+    }
+  }
+
+  interaction_components <- unique(unlist(spec$interactions, use.names = FALSE))
+  data.frame(
+    Predictor = fixed,
+    `Model Role` = ifelse(fixed %in% interaction_components, "Fixed effect + interaction component", "Fixed effect"),
+    `Suggested Level` = vapply(fixed, infer_level, character(1)),
+    Centering = vapply(fixed, function(x) spec$fixed[[x]]$center %||% "none", character(1)),
+    `Within-Group Variation` = vapply(fixed, within_text, character(1)),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+}
+
 factor_vars <- function(data) {
   names(data)[vapply(data, function(x) is.factor(x) || is.character(x), logical(1))]
 }
