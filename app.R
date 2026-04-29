@@ -158,45 +158,20 @@ ui <- page_navbar(
         checkboxInput("random_intercept", "Random intercept", TRUE),
         checkboxInput("random_correlation", "Correlated intercept/slope effects", TRUE)
       ),
-      tabsetPanel(
-        id = "model_section",
-        tabPanel(
-          "Summary",
-          br(),
-          layout_columns(
-            col_widths = c(5, 7),
-            card(card_header("Model Builder Summary"), tableOutput("model_builder_summary")),
-            card(card_header("Working Formula"), verbatimTextOutput("formula_preview"))
-          ),
-          card(
-            card_header("Declared Predictors by Level"),
-            div(class = "mode-note", "Place predictors into the level where they belong conceptually. The variation check is a warning aid only; it does not decide the level for you."),
-            div(class = "scroll-table", tableOutput("predictor_level_table"))
-          )
+      div(
+        class = "model-summary-page",
+        br(),
+        layout_columns(
+          col_widths = c(5, 7),
+          card(card_header("Model Builder Summary"), tableOutput("model_builder_summary")),
+          card(card_header("Working Formula"), verbatimTextOutput("formula_preview"))
         ),
-        tabPanel(
-          "Fixed Effects",
-          br(),
-          card(
-            card_header("Declared Predictors by Level"),
-            div(class = "scroll-table", tableOutput("predictor_level_table_fixed"))
-          ),
-          card(card_header("Fixed Effects Preview"), tableOutput("fixed_preview")),
-          card(card_header("Available Variables"), uiOutput("variable_palette"))
+        card(
+          card_header("Declared Predictors by Level"),
+          div(class = "mode-note", "Place predictors into the level where they belong conceptually. The variation check is a warning aid only; it does not decide the level for you."),
+          div(class = "scroll-table", tableOutput("predictor_level_table"))
         ),
-        tabPanel(
-          "Random Effects",
-          br(),
-          layout_columns(
-            col_widths = c(5, 7),
-            card(card_header("Random Effects Structure"), verbatimTextOutput("random_preview")),
-            card(
-              card_header("Optional Tau Matrix Preview"),
-              uiOutput("vcov_template_note"),
-              plotOutput("vcov_template", height = "360px")
-            )
-          )
-        )
+        card(card_header("Available Variables"), uiOutput("variable_palette"))
       )
     )
   ),

@@ -82,10 +82,15 @@ body {
 }
 
 .navbar .navbar-toggler-icon {
-  filter: none;
+  background: #17232f !important;
+  background-image: none !important;
+  border-radius: 999px;
+  box-shadow: 0 -8px 0 #17232f, 0 8px 0 #17232f;
+  display: block;
+  height: 3px;
+  margin: 9px 2px;
   opacity: 1;
-  --bs-navbar-toggler-icon-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%2317232f' stroke-linecap='round' stroke-miterlimit='10' stroke-width='3.2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
-  background-image: var(--bs-navbar-toggler-icon-bg);
+  width: 28px;
 }
 
 .card {
@@ -494,7 +499,9 @@ pre {
 }
 
 [data-bs-theme="dark"] .navbar .navbar-toggler-icon {
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='%23d7e6e8' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2.5' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e");
+  background: #d7e6e8 !important;
+  background-image: none !important;
+  box-shadow: 0 -8px 0 #d7e6e8, 0 8px 0 #d7e6e8;
 }
 
 [data-bs-theme="dark"] .navbar .nav-link:hover,
