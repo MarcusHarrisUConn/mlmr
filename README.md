@@ -96,9 +96,23 @@ vignette("getting-started", package = "mlmr")
 vignette("equations-and-reporting", package = "mlmr")
 ```
 
-A `pkgdown` documentation site is planned for GitHub Pages so users can browse
-tutorials, reference documentation, screenshots, and beta feedback instructions
-without installing the package first.
+The public package documentation site is planned for:
+
+<https://marcusharrisphd.com/mlmr/>
+
+This site will be built with `pkgdown` so users can browse tutorials, reference
+documentation, screenshots, and beta feedback instructions without installing
+the package first.
+
+## Website Placement
+
+The main academic website can use a **Software** tab as the public entry point
+for research tools. A concise entry for `mlmr` can link to:
+
+- the package documentation site: <https://marcusharrisphd.com/mlmr/>
+- the GitHub repository: <https://github.com/MarcusHarrisUConn/mlmr>
+- the issue tracker for beta feedback:
+  <https://github.com/MarcusHarrisUConn/mlmr/issues>
 
 ## Public Beta Feedback
 

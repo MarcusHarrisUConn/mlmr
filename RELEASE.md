@@ -7,6 +7,9 @@ This checklist is for the public beta and later CRAN release process.
 - [ ] Confirm `R CMD check --as-cran` passes locally.
 - [ ] Confirm GitHub Actions passes on `main`.
 - [ ] Build and publish the `pkgdown` documentation site.
+- [ ] Add a **Software** tab or section on <https://marcusharrisphd.com/>
+      linking to the `mlmr` pkgdown site.
+- [ ] Confirm <https://marcusharrisphd.com/mlmr/> resolves after Pages deploys.
 - [ ] Review README installation and demo instructions.
 - [ ] Review vignettes in a browser.
 - [ ] Add screenshots or short demo GIFs to documentation.
