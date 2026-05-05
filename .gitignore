@@ -13,3 +13,4 @@ renv/library/
 renv/staging/
 vignettes/*.html
 vignettes/*_files/
+docs/

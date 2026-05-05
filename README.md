@@ -1,72 +1,72 @@
 # mlmr
 
-`mlmr` is an open-source Shiny app and R toolkit for fitting, understanding,
-and reporting mixed-effects and multilevel models in R.
+<!-- badges: start -->
+[![R CMD check](https://github.com/MarcusHarrisUConn/mlmr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/MarcusHarrisUConn/mlmr/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
 
-The package is designed for researchers who want a guided graphical workflow
-while preserving transparent, reproducible R code. Under the hood, `mlmr` uses
-`lme4` and helps users build models, choose centering strategies, inspect
-random-effects structures, generate equations, create APA-style tables, and
-export reproducible code and LaTeX.
+`mlmr` is an open-source R package and Shiny app for fitting, understanding,
+and reporting mixed-effects and multilevel models. It is designed for
+researchers, instructors, graduate students, and applied analysts who want a
+guided model-building workflow without giving up transparent R code.
+
+The app uses `lme4` under the hood and helps users move from data, grouping
+structure, centering decisions, fixed effects, random effects, and interactions
+to APA-style tables, level-by-level equations, combined equations, Tau
+variance-covariance displays, diagnostics, and reproducible exports.
+
+## Why Use mlmr?
+
+Many researchers learn multilevel modeling through level-based software
+workflows, but later need reproducible R syntax for manuscripts, theses,
+teaching, and open science. `mlmr` is meant to bridge those worlds:
+
+- model setup feels familiar to users who think in Level 1, Level 2, and Level
+  3 terms;
+- fitted models are still ordinary `lme4` models;
+- centering, dummy coding, interactions, and random-effects choices are made
+  explicit;
+- results are paired with reproducible R code and manuscript-ready LaTeX.
 
 ## Current Features
 
-- Two- and three-level mixed-effects model workflows
-- Random intercepts and random slopes
+- Guided Shiny interface for two- and three-level nested model workflows
+- User-declared Level 1, Level 2, and Level 3 predictor selection
+- Random intercept and random slope models
 - Correlated and independent random-effects structures
 - Grand-mean and cluster-mean centering controls
 - Interaction and cross-level interaction support
-- APA-style fixed-effects, variance components, ICC, and dummy-coding tables
-- Level-by-level and combined model equations
-- Tau variance-covariance matrix display
-- Diagnostics and model comparison tools
 - Built-in HSB-style example data with preset model choices
 - Upload support for CSV, TSV/TXT, Excel, SPSS, SAS, and Stata files
 - Model-readiness checks before fitting custom models
-- Shiny interface plus reproducible R code, Quarto, and LaTeX export
-
-## Public Beta Feedback
-
-`mlmr` is ready for demo testing and early feedback. If you try the app, please
-open a GitHub issue with comments about the model-building workflow, equations,
-APA tables, diagnostics, generated code, or uploaded-data experience:
-
-<https://github.com/MarcusHarrisUConn/mlmr/issues>
-
-The most helpful feedback includes the model structure, whether you used the
-built-in example or uploaded data, screenshots of confusing output, and any
-generated code or error messages.
-
-For a short guided walkthrough, see [DEMO.md](DEMO.md).
-
-## Why mlmr?
-
-Mixed-effects and multilevel models are powerful, but many researchers learn
-them through software workflows that hide the model formula, centering choices,
-equations, variance components, and reporting code. `mlmr` aims to make those
-pieces visible.
-
-The goal is not only to fit a model, but to help users understand what was fit,
-how the random-effects structure was specified, how predictors were centered,
-and how to reproduce the analysis in a manuscript-ready workflow.
+- APA-style fixed-effects, variance components, ICC, and dummy-coding tables
+- Level-by-level equations, combined equations, and Tau matrix displays
+- Diagnostics, model comparison tools, and convergence guidance
+- Reproducible R code, Quarto report, HTML, Word-compatible, and LaTeX exports
 
 ## Installation
 
-The package is in early development. After the GitHub repository is public, you
-can install the development version with:
+`mlmr` is currently available from GitHub:
+
+```r
+install.packages("pak")
+pak::pak("MarcusHarrisUConn/mlmr")
+```
+
+You can also install with `remotes`:
 
 ```r
 install.packages("remotes")
 remotes::install_github("MarcusHarrisUConn/mlmr")
 ```
 
-## Run the App
-
-After installation:
+## Launch the App
 
 ```r
 mlmr::run_mlmr()
 ```
+
+The app opens with a built-in HSB-style example so users can test the complete
+workflow before uploading their own data.
 
 During local development, run the app directly from the project folder:
 
@@ -74,26 +74,68 @@ During local development, run the app directly from the project folder:
 shiny::runApp(".")
 ```
 
-## Project Structure
+## Five-Minute Demo
 
-- `app.R` - Shiny UI and server for local development
-- `R/mlm_core.R` - model specification, formula generation, fitting,
-  diagnostics, equations, tables, and code generation
-- `R/run_mlmr.R` - package launch helper
-- `inst/app/` - installed-package copy of the Shiny app
-- `www/style.css` - app styling
-- `man/` - package documentation
+1. Launch the app with `mlmr::run_mlmr()`.
+2. Keep the built-in example data selected on the **Data** tab.
+3. Review grouping factors, missingness, and variable roles.
+4. Open **Model** and inspect the outcome, declared predictor levels,
+   centering, interactions, and random-effects choices.
+5. Click **Fit Example Model**.
+6. Review **Results > Tables**, **Results > Equations**, and
+   **Results > Diagnostics**.
+7. Open **Report & Code** to export reproducible R code, raw LaTeX, APA tables,
+   and a Quarto-ready report.
+
+## Documentation
+
+The package includes vignettes for getting started and for equations/reporting:
+
+```r
+vignette("getting-started", package = "mlmr")
+vignette("equations-and-reporting", package = "mlmr")
+```
+
+A `pkgdown` documentation site is planned for GitHub Pages so users can browse
+tutorials, reference documentation, screenshots, and beta feedback instructions
+without installing the package first.
+
+## Public Beta Feedback
+
+`mlmr` is ready for structured demo testing and early feedback. If you try the
+app, please open a GitHub issue with comments about the model-building workflow,
+equations, APA tables, diagnostics, generated code, or uploaded-data experience:
+
+<https://github.com/MarcusHarrisUConn/mlmr/issues>
+
+Helpful feedback includes:
+
+- the model structure you tried;
+- whether you used the built-in example or uploaded data;
+- screenshots of confusing output;
+- generated code if reproducibility was the issue;
+- warning or error messages;
+- what you expected to happen instead.
+
+For a short guided walkthrough, see [DEMO.md](DEMO.md).
+
+## Current Status
+
+`mlmr` is in public beta. The current version is suitable for demonstration,
+teaching, usability testing, and structured feedback. Users should independently
+verify model specification, convergence, diagnostics, and interpretation before
+using results in production research.
 
 ## Roadmap
 
-- Strengthen unit tests for formula generation, centering, equations, tables,
-  and exports
-- Add package vignettes for two-level models, three-level models, centering,
-  equations, and reporting
-- Build a `pkgdown` documentation site
-- Expand support for crossed random effects, longitudinal models, GLMMs, and
-  multiple-membership structures
-- Prepare for a public beta release before CRAN submission
+Near-term priorities:
+
+- publish the `pkgdown` documentation site;
+- add screenshots and a richer public demo guide;
+- expand tests for formulas, centering, equations, tables, and exports;
+- harden uploaded-data validation;
+- prepare CRAN release materials;
+- broaden crossed, longitudinal, GLMM, and multiple-membership workflows.
 
 ## License
 

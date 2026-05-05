@@ -1,5 +1,14 @@
 ^_pkgdown\.yml$
-^docs/quarto$
+^dev$
+^docs$
 ^pkgdown$
 ^ROADMAP\.md$
 ^\.github$
+^app\.R$
+^install_packages\.R$
+^run_app\.R$
+^www$
+^DEMO\.md$
+^CONTRIBUTING\.md$
+^RELEASE\.md$
+^cran-comments\.md$

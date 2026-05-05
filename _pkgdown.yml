@@ -1,4 +1,4 @@
-url: https://marcusharrisuconn.github.io/mlmr/
+url: https://marcusharrisphd.com/mlmr/
 
 template:
   bootstrap: 5
@@ -34,6 +34,9 @@ home:
     interface, readable equations, APA-style tables, and reproducible exports.
 
 reference:
+- title: Package overview
+  contents:
+  - mlmr-package
 - title: Launch the app
   contents:
   - run_mlmr

@@ -1,5 +1,16 @@
 # mlmr 0.1.0
 
+## Public beta preparation
+
+- Polished README installation, demo, documentation, and feedback guidance.
+- Added package-level documentation and runnable interactive example for
+  `run_mlmr()`.
+- Added CRAN submission comments and release checklist scaffolding.
+- Added a GitHub Actions workflow for building and publishing the `pkgdown`
+  documentation site.
+- Kept root development app files out of the built package; the installed Shiny
+  app is shipped through `inst/app/`.
+
 ## Development version
 
 - Added the initial Shiny app for mixed-effects and multilevel model building.
