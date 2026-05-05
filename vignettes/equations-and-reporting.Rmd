@@ -95,6 +95,23 @@ transparent reporting workflow.
 7. Edit the interpretation for the specific research question and manuscript
    context.
 
+## Manuscript Support
+
+The reporting tools are meant to support manuscript preparation, not merely app
+display. The fixed-effects table includes estimates, standard errors, test
+statistics, p values, and confidence intervals. The LaTeX export provides raw
+table and equation code that can be pasted into Overleaf or a Quarto document.
+
+The equations section is especially useful for theses, dissertations, and
+methods courses because it keeps three representations together:
+
+- the fitted `lme4` formula;
+- the level-by-level multilevel equations;
+- the combined equation with the random-effects variance-covariance structure.
+
+This makes it easier to check whether the statistical model, the manuscript
+notation, and the reproducible R code all describe the same analysis.
+
 ## Interpretation Caution
 
 `mlmr` helps users produce readable output, but it does not replace statistical

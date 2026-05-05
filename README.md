@@ -27,6 +27,25 @@ teaching, and open science. `mlmr` is meant to bridge those worlds:
   explicit;
 - results are paired with reproducible R code and manuscript-ready LaTeX.
 
+## What the App Looks Like
+
+The app is organized around a guided workflow rather than a blank formula box:
+
+- **Data**: load the built-in example or upload your own file.
+- **Model**: declare outcome, grouping variables, predictor levels, centering,
+  interactions, and random effects.
+- **Estimate**: fit or refit the model with visible feedback.
+- **Results**: review diagnostics, APA-style tables, equations, variance
+  components, and reporting exports.
+
+Screenshots and a visual walkthrough are available on the documentation site:
+
+<https://marcusharrisphd.com/mlmr/>
+
+![mlmr model builder](https://marcusharrisphd.com/mlmr/screenshots/mlmr-model-builder.png)
+
+![mlmr results dashboard](https://marcusharrisphd.com/mlmr/screenshots/mlmr-results-dashboard.png)
+
 ## Current Features
 
 - Guided Shiny interface for two- and three-level nested model workflows
@@ -96,13 +115,28 @@ vignette("getting-started", package = "mlmr")
 vignette("equations-and-reporting", package = "mlmr")
 ```
 
-The public package documentation site is planned for:
+The public package documentation site is:
 
 <https://marcusharrisphd.com/mlmr/>
 
-This site will be built with `pkgdown` so users can browse tutorials, reference
+This site is built with `pkgdown` so users can browse tutorials, reference
 documentation, screenshots, and beta feedback instructions without installing
 the package first.
+
+## PDF Reference Manual
+
+CRAN automatically generates a PDF reference manual from package help files
+after a package is accepted. During development, the same kind of manual can be
+created locally with:
+
+```powershell
+$paths = $env:PATH -split ';' | Where-Object { $_ -and ($_ -notmatch 'MiKTeX') }
+$env:PATH = 'C:\Users\mah22013\AppData\Roaming\TinyTeX\bin\windows;' + ($paths -join ';')
+R CMD Rd2pdf . --output=dev/mlmr-reference-manual.pdf
+```
+
+The PDF manual is useful for checking function documentation, but the pkgdown
+site and vignettes are the main user-facing guides during beta testing.
 
 ## Website Placement
 
@@ -144,8 +178,7 @@ using results in production research.
 
 Near-term priorities:
 
-- publish the `pkgdown` documentation site;
-- add screenshots and a richer public demo guide;
+- add more screenshots and a richer public demo guide;
 - expand tests for formulas, centering, equations, tables, and exports;
 - harden uploaded-data validation;
 - prepare CRAN release materials;

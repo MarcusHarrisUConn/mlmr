@@ -12,7 +12,8 @@ This checklist is for the public beta and later CRAN release process.
 - [ ] Confirm <https://marcusharrisphd.com/mlmr/> resolves after Pages deploys.
 - [ ] Review README installation and demo instructions.
 - [ ] Review vignettes in a browser.
-- [ ] Add screenshots or short demo GIFs to documentation.
+- [x] Add screenshots or short demo GIFs to documentation.
+- [x] Generate local PDF reference manual for documentation review.
 - [ ] Confirm `mlmr::run_mlmr()` launches from an installed package.
 - [ ] Create GitHub release `v0.2.0-beta`.
 - [ ] Share install instructions with beta testers:

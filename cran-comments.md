@@ -1,6 +1,6 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 2 notes
+0 errors | 0 warnings | 1 note
 
 ## Test environments
 
@@ -11,9 +11,6 @@
 
 - CRAN incoming reports "New submission"; this is expected for the first CRAN
   submission.
-- The local Windows check reported "unable to verify current time" while
-  checking for future file timestamps. This appears to be an environment/time
-  verification note rather than a package issue.
 
 ## Downstream dependencies
 

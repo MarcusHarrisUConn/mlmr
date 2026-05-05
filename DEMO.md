@@ -36,6 +36,36 @@ mlmr::run_mlmr()
 8. Open **Results > Diagnostics** and review model diagnostics.
 9. Open **Report & Code** and inspect the reproducible R code and LaTeX export.
 
+## Visual Walkthrough
+
+The screenshots below show the built-in example workflow. They are intended for
+orientation and for beta testers who want to know what a successful fit should
+look like.
+
+### Data Overview
+
+![Data overview](https://marcusharrisphd.com/mlmr/screenshots/mlmr-data-overview.png)
+
+### Model Builder
+
+![Model builder](https://marcusharrisphd.com/mlmr/screenshots/mlmr-model-builder.png)
+
+### Results Dashboard
+
+![Results dashboard](https://marcusharrisphd.com/mlmr/screenshots/mlmr-results-dashboard.png)
+
+### APA Tables
+
+![APA tables](https://marcusharrisphd.com/mlmr/screenshots/mlmr-results-tables.png)
+
+### Equations
+
+![Equations](https://marcusharrisphd.com/mlmr/screenshots/mlmr-results-equations.png)
+
+### Report and Code
+
+![Report and code](https://marcusharrisphd.com/mlmr/screenshots/mlmr-report-code.png)
+
 ## What to Evaluate
 
 Please pay attention to:

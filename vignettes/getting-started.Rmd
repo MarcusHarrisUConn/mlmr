@@ -55,6 +55,25 @@ Uploaded data can be provided as CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files.
 Excel support uses the optional `readxl` package, and SPSS/SAS/Stata support
 uses the optional `haven` package.
 
+## How the Interface Is Organized
+
+The app uses a small number of main tabs so users can move from data to model
+results without losing the thread of the analysis.
+
+- **Data** is for selecting the built-in example, uploading files, checking
+  missingness, and reviewing variable roles.
+- **Model** is for declaring the outcome, grouping factors, predictor levels,
+  centering choices, interactions, and random-effects structure.
+- **Estimate** is for fitting or refitting the model and reviewing model
+  readiness before estimation.
+- **Results** is for model summaries, APA-style tables, equations, diagnostics,
+  and comparison tools.
+- **Report & Code** is for reproducible R code, raw LaTeX, and report exports.
+
+The public documentation site includes screenshots of these screens:
+
+<https://marcusharrisphd.com/mlmr/>
+
 ## Recommended First Workflow
 
 1. Open the app.
@@ -94,6 +113,19 @@ tab exports the analysis code and the raw LaTeX used for tables and equations.
 
 The long-term goal is that users can move from the graphical workflow to a
 scripted R workflow without losing any modeling decisions.
+
+## PDF Manual and Help Pages
+
+Like other R packages, `mlmr` has function help pages that can be viewed with:
+
+```{r help}
+?run_mlmr
+help(package = "mlmr")
+```
+
+CRAN automatically creates a PDF reference manual from those help pages after a
+package is accepted. During beta development, the pkgdown website and vignettes
+are the main user-facing manuals because they explain the workflow in context.
 
 ## Current Status
 
