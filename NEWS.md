@@ -6,6 +6,8 @@
   fitting, equations, APA tables, and software/package reporting.
 - Added APA-style software and R package reporting for reproducible manuscripts,
   including Shiny app display, Quarto report output, and LaTeX export.
+- Added optional `papaja` citation code generation for users who want APA-style
+  R/package citations and BibTeX references in R Markdown manuscripts.
 - Polished README installation, demo, documentation, and feedback guidance.
 - Added package-level documentation and runnable interactive example for
   `run_mlmr()`.

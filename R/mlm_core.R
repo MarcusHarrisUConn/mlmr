@@ -754,6 +754,28 @@ mlm_software_apa <- function(packages = mlm_default_packages()) {
   )
 }
 
+mlm_papaja_code <- function(packages = mlm_default_packages(), bib_file = "r-references.bib") {
+  packages <- unique(packages[nzchar(packages)])
+  package_text <- paste(sprintf("\"%s\"", packages), collapse = ", ")
+  c(
+    "# Optional papaja workflow for APA-style software citations.",
+    "# Install once if needed: install.packages(\"papaja\")",
+    sprintf("reported_packages <- c(%s)", package_text),
+    "",
+    "if (requireNamespace(\"papaja\", quietly = TRUE)) {",
+    sprintf("  papaja::r_refs(file = \"%s\")", bib_file),
+    "  software_citation <- papaja::cite_r(",
+    sprintf("    file = \"%s\",", bib_file),
+    "    pkgs = reported_packages,",
+    "    omit = FALSE",
+    "  )",
+    "  software_citation",
+    "} else {",
+    "  message(\"Install papaja to generate APA-style R/package citations and BibTeX references.\")",
+    "}"
+  )
+}
+
 apa_software_latex <- function(packages = mlm_default_packages(), caption = "Software and R packages used in the analysis.", label = "tab:software") {
   tab <- mlm_software_table(packages)
   apa_latex_table(tab, caption = caption, label = label)
@@ -792,7 +814,9 @@ software_repro_code <- function(packages = mlm_default_packages()) {
     "  package_versions$Version[package_versions$Software == \"R\"],",
     "  paste(sprintf(\"%s version %s\", package_versions$Software[package_versions$Software != \"R\"], package_versions$Version[package_versions$Software != \"R\"]), collapse = \", \")",
     ")",
-    "software_statement"
+    "software_statement",
+    "",
+    mlm_papaja_code(packages)
   )
 }
 
@@ -1131,6 +1155,14 @@ manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa"
     mlm_software_apa(),
     "",
     table_md(software),
+    "",
+    "## Optional papaja Citation Workflow",
+    "",
+    "If `papaja` is installed, the following code creates APA-style R/package citations and a BibTeX file for the packages used in this analysis.",
+    "",
+    "```r",
+    mlm_papaja_code(),
+    "```",
     "",
     "# Equations",
     "",

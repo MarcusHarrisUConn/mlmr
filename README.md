@@ -123,6 +123,13 @@ mlmr::mlm_software_apa()
 The software-reporting helpers create a manuscript-ready statement and table
 with the R version and package versions used in the analysis.
 
+For APA manuscript workflows that use `papaja`, `mlmr` also generates optional
+code using `papaja::r_refs()` and `papaja::cite_r()`:
+
+```r
+cat(mlmr::mlm_papaja_code(), sep = "\n")
+```
+
 ## Five-Minute Demo
 
 1. Launch the app with `mlmr::run_mlmr()`.

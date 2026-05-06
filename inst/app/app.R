@@ -328,6 +328,11 @@ ui <- page_navbar(
         card_header("APA Software Statement"),
         p("Copy this into a manuscript methods, reproducibility, or supplemental materials section."),
         verbatimTextOutput("software_statement")
+      ),
+      card(
+        card_header("Optional papaja Citation Code"),
+        p("Use this in an APA manuscript workflow to generate R/package citations and BibTeX references with papaja."),
+        verbatimTextOutput("papaja_code")
       )
     )
   ),
@@ -1117,6 +1122,10 @@ server <- function(input, output, session) {
 
   output$software_statement <- renderText({
     mlm_software_apa()
+  })
+
+  output$papaja_code <- renderText({
+    paste(mlm_papaja_code(), collapse = "\n")
   })
 
   output$apa_latex_table <- renderText({

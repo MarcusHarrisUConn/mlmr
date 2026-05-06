@@ -126,6 +126,17 @@ The Shiny app includes the same information in the **Results > Tables** tab, the
 raw LaTeX export, and the Quarto report. This gives users a ready-to-edit
 software statement for APA-style manuscripts and supplemental materials.
 
+Users who write manuscripts with `papaja` can also ask `mlmr` for ready-to-run
+package citation code:
+
+```{r papaja-code}
+cat(mlmr::mlm_papaja_code(), sep = "\n")
+```
+
+The generated code uses `papaja::r_refs()` to create a BibTeX file and
+`papaja::cite_r()` to create an APA-style R/package citation statement. `papaja`
+is optional; it is not required to install or launch `mlmr`.
+
 ## Interpretation Caution
 
 `mlmr` helps users produce readable output, but it does not replace statistical
