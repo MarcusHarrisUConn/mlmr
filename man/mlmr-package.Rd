@@ -17,6 +17,8 @@
   variance-covariance displays, and reproducible exports.
 
   Launch the app with \code{\link{run_mlmr}()}.
+
+  To cite the package, use \code{citation("mlmr")}.
 }
 \seealso{
   \code{\link{run_mlmr}}

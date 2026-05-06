@@ -20,6 +20,7 @@ A list containing the fitted model, formula, centered data, centering code, and
 model specification.
 }
 \examples{
+\donttest{
 if (requireNamespace("lme4", quietly = TRUE)) {
   dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
   spec <- mlm_spec(
@@ -32,5 +33,6 @@ if (requireNamespace("lme4", quietly = TRUE)) {
   )
   fit <- mlm_fit(spec)
   summary(fit$fit)
+}
 }
 }

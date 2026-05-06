@@ -26,6 +26,7 @@ LaTeX document. \code{mlm_equations()} returns plain-text equation descriptions.
 \code{mlm_latex_equations()} returns raw LaTeX equation components.
 }
 \examples{
+\donttest{
 if (requireNamespace("lme4", quietly = TRUE)) {
   dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
   spec <- mlm_spec(
@@ -39,5 +40,6 @@ if (requireNamespace("lme4", quietly = TRUE)) {
   result <- mlm_fit(spec)
   mlm_apa_tables(result)
   mlm_latex_equations(result)
+}
 }
 }
