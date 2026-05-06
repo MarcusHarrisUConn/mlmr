@@ -618,6 +618,10 @@ build_formula <- function(spec) {
   stats::as.formula(paste(spec$outcome, "~", paste(c(rhs_fixed, random_terms), collapse = " + ")))
 }
 
+mlm_formula <- function(spec) {
+  build_formula(spec)
+}
+
 mlm_fit <- function(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 20000) {
   if (!requireNamespace("lme4", quietly = TRUE)) {
     stop("Package 'lme4' is required. Install it with install.packages('lme4').", call. = FALSE)
@@ -664,6 +668,131 @@ icc_table <- function(fit) {
     variance = round(intercepts$vcov, 4),
     icc = round(intercepts$vcov / total, 4),
     stringsAsFactors = FALSE
+  )
+}
+
+mlm_default_packages <- function() {
+  c("R", "mlmr", "lme4", "shiny", "bslib", "ggplot2")
+}
+
+package_version_safe <- function(package) {
+  if (identical(package, "R")) {
+    return(paste(R.version$major, R.version$minor, sep = "."))
+  }
+  version <- tryCatch(
+    as.character(utils::packageVersion(package)),
+    error = function(e) NA_character_
+  )
+  if (is.na(version) && identical(package, "mlmr") && file.exists("DESCRIPTION")) {
+    desc <- tryCatch(read.dcf("DESCRIPTION"), error = function(e) NULL)
+    if (!is.null(desc) && "Version" %in% colnames(desc)) {
+      version <- as.character(desc[1, "Version"])
+    }
+  }
+  version
+}
+
+package_purpose <- function(package) {
+  switch(
+    package,
+    R = "Statistical computing environment",
+    mlmr = "Guided mixed-effects and multilevel modeling workflow",
+    lme4 = "Mixed-effects model estimation",
+    shiny = "Interactive web application framework",
+    bslib = "User interface theming",
+    ggplot2 = "Diagnostic and reporting graphics",
+    haven = "SPSS, SAS, and Stata file import",
+    readxl = "Excel file import",
+    rmarkdown = "Report rendering",
+    knitr = "Dynamic report generation",
+    "Analysis dependency"
+  )
+}
+
+package_citation_label <- function(package) {
+  switch(
+    package,
+    R = "R Core Team",
+    mlmr = "Harris",
+    lme4 = "Bates et al.",
+    shiny = "Chang et al.",
+    bslib = "Sievert and Cheng",
+    ggplot2 = "Wickham",
+    haven = "Wickham et al.",
+    readxl = "Wickham and Bryan",
+    rmarkdown = "Allaire et al.",
+    knitr = "Xie",
+    package
+  )
+}
+
+mlm_software_table <- function(packages = mlm_default_packages()) {
+  packages <- unique(packages[nzchar(packages)])
+  data.frame(
+    Software = packages,
+    Version = vapply(packages, package_version_safe, character(1)),
+    Purpose = vapply(packages, package_purpose, character(1)),
+    Citation = vapply(packages, package_citation_label, character(1)),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+}
+
+mlm_software_apa <- function(packages = mlm_default_packages()) {
+  tab <- mlm_software_table(packages)
+  r_version <- tab$Version[tab$Software == "R"]
+  pkg_tab <- tab[tab$Software != "R", , drop = FALSE]
+  package_text <- if (nrow(pkg_tab)) {
+    paste(sprintf("%s version %s", pkg_tab$Software, pkg_tab$Version), collapse = ", ")
+  } else {
+    "no additional R packages"
+  }
+  sprintf(
+    "Analyses were conducted in R version %s. Model estimation, reporting, and reproducible exports used %s. Package versions are reported to support computational reproducibility.",
+    if (length(r_version) && !is.na(r_version[[1]])) r_version[[1]] else paste(R.version$major, R.version$minor, sep = "."),
+    package_text
+  )
+}
+
+apa_software_latex <- function(packages = mlm_default_packages(), caption = "Software and R packages used in the analysis.", label = "tab:software") {
+  tab <- mlm_software_table(packages)
+  apa_latex_table(tab, caption = caption, label = label)
+}
+
+apa_software_html <- function(packages = mlm_default_packages(), table_number = 5, title = "Software and R Packages Used in the Analysis") {
+  apa_html_table(
+    mlm_software_table(packages),
+    table_number = table_number,
+    title = title,
+    note = "Package versions should be reported with manuscripts or supplementary materials so analyses can be reproduced in the same computational environment."
+  )
+}
+
+software_repro_code <- function(packages = mlm_default_packages()) {
+  packages <- unique(packages[nzchar(packages)])
+  c(
+    "reported_packages <- c(",
+    paste0("  \"", packages, "\"", collapse = ",\n"),
+    ")",
+    "package_versions <- data.frame(",
+    "  Software = reported_packages,",
+    "  Version = vapply(reported_packages, function(pkg) {",
+    "    if (identical(pkg, \"R\")) {",
+    "      paste(R.version$major, R.version$minor, sep = \".\")",
+    "    } else {",
+    "      as.character(utils::packageVersion(pkg))",
+    "    }",
+    "  }, character(1)),",
+    "  check.names = FALSE",
+    ")",
+    "package_versions",
+    "",
+    "software_statement <- sprintf(",
+    "  \"Analyses were conducted in R version %s using %s.\",",
+    "  package_versions$Version[package_versions$Software == \"R\"],",
+    "  paste(sprintf(\"%s version %s\", package_versions$Software[package_versions$Software != \"R\"], package_versions$Version[package_versions$Software != \"R\"]), collapse = \", \")",
+    ")",
+    "software_statement"
   )
 }
 
@@ -940,6 +1069,9 @@ raw_latex_bundle <- function(result) {
     "% Table 4. Intraclass correlations",
     paste(apa_icc_latex(result$fit), collapse = "\n"),
     "",
+    "% Table 5. Software and R packages",
+    paste(apa_software_latex(), collapse = "\n"),
+    "",
     "% Level-by-level equations",
     paste(vapply(eq$equations, latex_display_equation, character(1)), collapse = "\n\n"),
     "",
@@ -958,6 +1090,7 @@ manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa"
   fixed <- apa_fixed_table(result$fit)
   variance <- variance_table(result$fit)
   icc <- icc_table(result$fit)
+  software <- mlm_software_table()
   eq <- mlm_latex_equations(result)
   table_md <- function(tab) {
     if (!nrow(tab)) return("_No rows available._")
@@ -992,6 +1125,12 @@ manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa"
     "# Intraclass Correlations",
     "",
     table_md(icc),
+    "",
+    "# Software and Packages",
+    "",
+    mlm_software_apa(),
+    "",
+    table_md(software),
     "",
     "# Equations",
     "",
@@ -1090,6 +1229,7 @@ apa_tables_html_document <- function(result) {
     apa_dummy_html(result$data, names(result$spec$fixed)),
     apa_variance_html(result$fit),
     apa_icc_html(result$fit),
+    apa_software_html(),
     "</body></html>"
   )
 }
@@ -1105,7 +1245,26 @@ apa_tables_latex_document <- function(result) {
     paste(apa_variance_latex(result$fit), collapse = "\n"),
     "",
     paste(apa_icc_latex(result$fit), collapse = "\n"),
+    "",
+    paste(apa_software_latex(), collapse = "\n"),
     sep = "\n"
+  )
+}
+
+mlm_apa_tables <- function(result, format = c("list", "html", "latex")) {
+  format <- match.arg(format)
+  if (identical(format, "html")) {
+    return(apa_tables_html_document(result))
+  }
+  if (identical(format, "latex")) {
+    return(apa_tables_latex_document(result))
+  }
+  list(
+    fixed_effects = apa_fixed_table(result$fit),
+    dummy_coding = dummy_coding_table(result$data, names(result$spec$fixed)),
+    variance_components = variance_table(result$fit),
+    icc = icc_table(result$fit),
+    software = mlm_software_table()
   )
 }
 
@@ -1258,6 +1417,9 @@ generate_repro_code <- function(result, REML, optimizer, maxfun) {
     section("Packages"),
     "library(lme4)",
     "",
+    "# These packages are reported in the manuscript software section.",
+    "reported_packages <- c(\"R\", \"mlmr\", \"lme4\", \"shiny\", \"bslib\", \"ggplot2\")",
+    "",
     section("Model Structure"),
     sprintf("# Grouping structure selected in the app: %s", spec$structure %||% "nested"),
     sprintf("# Grouping factors: %s", paste(unlist(spec$grouping, use.names = FALSE), collapse = ", ")),
@@ -1335,6 +1497,10 @@ generate_repro_code <- function(result, REML, optimizer, maxfun) {
     "  check.names = FALSE",
     ")",
     "icc_table",
+    "",
+    section("Table 5: Software and R Packages"),
+    "# Table 5. Software and package versions used for the analysis",
+    software_repro_code(),
     "",
     section("APA LaTeX Table"),
     "# Manuscript-ready LaTeX table",

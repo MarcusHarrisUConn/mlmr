@@ -43,6 +43,16 @@ reference:
 - title: Launch the app
   contents:
   - run_mlmr
+- title: Specify and fit models
+  contents:
+  - example_hsb
+  - mlm_spec
+  - mlm_formula
+  - mlm_fit
+- title: Report models
+  contents:
+  - mlm_apa_tables
+  - mlm_software_table
 
 articles:
 - title: Tutorials

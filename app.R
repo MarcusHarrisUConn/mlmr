@@ -232,7 +232,8 @@ ui <- page_navbar(
             card(card_header("APA Fixed Effects Table"), uiOutput("apa_table_html")),
             card(card_header("Dummy Coding"), uiOutput("dummy_table_html")),
             card(card_header("Variance Components"), uiOutput("variance_table_html")),
-            card(card_header("ICC"), uiOutput("icc_table_html"))
+            card(card_header("ICC"), uiOutput("icc_table_html")),
+            card(card_header("Software and R Packages"), uiOutput("software_table_html"))
           )
         ),
         tabPanel(
@@ -322,6 +323,11 @@ ui <- page_navbar(
           downloadButton("download_tables_html", "Download HTML Tables"),
           downloadButton("download_tables_tex", "Download LaTeX Tables")
         )
+      ),
+      card(
+        card_header("APA Software Statement"),
+        p("Copy this into a manuscript methods, reproducibility, or supplemental materials section."),
+        verbatimTextOutput("software_statement")
       )
     )
   ),
@@ -1103,6 +1109,14 @@ server <- function(input, output, session) {
     res <- active_result()
     if (is.null(res)) return(p("Fit a model to generate ICCs."))
     HTML(apa_icc_html(res$fit))
+  })
+
+  output$software_table_html <- renderUI({
+    HTML(apa_software_html())
+  })
+
+  output$software_statement <- renderText({
+    mlm_software_apa()
   })
 
   output$apa_latex_table <- renderText({

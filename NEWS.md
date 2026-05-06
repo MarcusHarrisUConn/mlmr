@@ -2,6 +2,10 @@
 
 ## Public beta preparation
 
+- Exported core backend helpers for model specification, formula generation,
+  fitting, equations, APA tables, and software/package reporting.
+- Added APA-style software and R package reporting for reproducible manuscripts,
+  including Shiny app display, Quarto report output, and LaTeX export.
 - Polished README installation, demo, documentation, and feedback guidance.
 - Added package-level documentation and runnable interactive example for
   `run_mlmr()`.

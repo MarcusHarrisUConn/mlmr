@@ -112,6 +112,20 @@ methods courses because it keeps three representations together:
 This makes it easier to check whether the statistical model, the manuscript
 notation, and the reproducible R code all describe the same analysis.
 
+## Reporting R Packages
+
+Reproducible manuscripts should also report the software environment used for
+the analysis. `mlmr` provides a small helper for this:
+
+```{r software}
+mlmr::mlm_software_table()
+mlmr::mlm_software_apa()
+```
+
+The Shiny app includes the same information in the **Results > Tables** tab, the
+raw LaTeX export, and the Quarto report. This gives users a ready-to-edit
+software statement for APA-style manuscripts and supplemental materials.
+
 ## Interpretation Caution
 
 `mlmr` helps users produce readable output, but it does not replace statistical

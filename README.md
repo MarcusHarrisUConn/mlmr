@@ -93,6 +93,36 @@ During local development, run the app directly from the project folder:
 shiny::runApp(".")
 ```
 
+## Use the Backend Directly
+
+The Shiny app is the guided interface, but the same model-building and reporting
+tools can be used directly in R:
+
+```r
+dat <- mlmr::example_hsb()
+
+spec <- mlmr::mlm_spec(
+  outcome = "mathscore",
+  fixed = list(
+    ses = list(center = "CWC"),
+    meanses = list(center = "GMC")
+  ),
+  grouping = list(schoolid = "schoolid"),
+  random = list(
+    schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE)
+  ),
+  data = dat
+)
+
+fit <- mlmr::mlm_fit(spec)
+mlmr::mlm_apa_tables(fit)
+mlmr::mlm_latex_equations(fit)
+mlmr::mlm_software_apa()
+```
+
+The software-reporting helpers create a manuscript-ready statement and table
+with the R version and package versions used in the analysis.
+
 ## Five-Minute Demo
 
 1. Launch the app with `mlmr::run_mlmr()`.
