@@ -4,6 +4,9 @@
 
 - Exported core backend helpers for model specification, formula generation,
   fitting, equations, APA tables, and software/package reporting.
+- Added `mlm_supported_models()` and a "Supported Models and Production Scope"
+  vignette so users can see supported, experimental, planned, and out-of-scope
+  features before using the app in real analyses.
 - Added APA-style software and R package reporting for reproducible manuscripts,
   including Shiny app display, Quarto report output, and LaTeX export.
 - Added optional `papaja` citation code generation for users who want APA-style

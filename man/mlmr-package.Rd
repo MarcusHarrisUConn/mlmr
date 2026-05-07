@@ -18,10 +18,14 @@
 
   Launch the app with \code{\link{run_mlmr}()}.
 
+  Inspect the current production scope with
+  \code{\link{mlm_supported_models}()}.
+
   To cite the package, use \code{citation("mlmr")}.
 }
 \seealso{
-  \code{\link{run_mlmr}}
+  \code{\link{run_mlmr}},
+  \code{\link{mlm_supported_models}}
 }
 \author{
   Marcus Harris

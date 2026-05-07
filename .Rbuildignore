@@ -12,3 +12,6 @@
 ^CONTRIBUTING\.md$
 ^RELEASE\.md$
 ^cran-comments\.md$
+^mlmr_.*\.tar\.gz$
+^mlmr\.Rcheck$
+^mlmr-Ex\.

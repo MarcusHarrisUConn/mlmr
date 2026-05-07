@@ -11,6 +11,7 @@ mlm_apa_tables <- get_mlmr("mlm_apa_tables")
 mlm_software_table <- get_mlmr("mlm_software_table")
 mlm_software_apa <- get_mlmr("mlm_software_apa")
 mlm_papaja_code <- get_mlmr("mlm_papaja_code")
+mlm_supported_models <- get_mlmr("mlm_supported_models")
 tau_label_table <- get_mlmr("tau_label_table")
 model_readiness_table <- get_mlmr("model_readiness_table")
 model_readiness_has_stops <- get_mlmr("model_readiness_has_stops")
@@ -43,6 +44,27 @@ stopifnot(grepl("ses_CWC", formula_text, fixed = TRUE))
 stopifnot(grepl("meanses_GMC", formula_text, fixed = TRUE))
 stopifnot(grepl("ses_CWC:sector", formula_text, fixed = TRUE))
 stopifnot(grepl("(1 + ses_CWC | schoolid)", formula_text, fixed = TRUE))
+
+uncorrelated_spec <- spec
+uncorrelated_spec$random$schoolid$correlation <- FALSE
+uncorrelated_formula <- paste(deparse(build_formula(uncorrelated_spec), width.cutoff = 500), collapse = " ")
+stopifnot(grepl("(1 | schoolid)", uncorrelated_formula, fixed = TRUE))
+stopifnot(grepl("(0 + ses_CWC | schoolid)", uncorrelated_formula, fixed = TRUE))
+
+three_level_spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(ses = list(center = "CWC"), meanses = list(center = "GMC")),
+  grouping = list(schoolid = "schoolid", districtid = "districtid"),
+  random = list(
+    schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE),
+    districtid = list(intercept = TRUE, slopes = character(), correlation = TRUE)
+  ),
+  predictor_levels = list(level1 = "ses", level2 = "meanses"),
+  data = dat
+)
+three_level_formula <- paste(deparse(build_formula(three_level_spec), width.cutoff = 500), collapse = " ")
+stopifnot(grepl("(1 + ses_CWC | schoolid)", three_level_formula, fixed = TRUE))
+stopifnot(grepl("(1 | districtid)", three_level_formula, fixed = TRUE))
 
 centered <- center_predictors(dat, spec$fixed, spec$grouping)
 stopifnot("ses_CWC" %in% names(centered$data))
@@ -100,3 +122,25 @@ papaja_code <- paste(mlm_papaja_code(), collapse = "\n")
 stopifnot(grepl("papaja::r_refs", papaja_code, fixed = TRUE))
 stopifnot(grepl("papaja::cite_r", papaja_code, fixed = TRUE))
 stopifnot(grepl("omit = FALSE", papaja_code, fixed = TRUE))
+
+binomial_spec <- mlm_spec(
+  outcome = "passmath",
+  distribution = "binomial",
+  link = "logit",
+  fixed = list(ses = list(center = "CWC")),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE, slopes = character(), correlation = TRUE)),
+  data = dat
+)
+binomial_fit <- mlm_fit(binomial_spec, optimizer = "bobyqa", maxfun = 10000)
+stopifnot(inherits(binomial_fit$fit, "glmerMod"))
+binomial_diagnostics <- get_mlmr("mlm_diagnostics")(binomial_fit$fit)
+stopifnot("Overdispersion ratio" %in% binomial_diagnostics$check)
+
+scope <- mlm_supported_models()
+stopifnot(nrow(scope) >= 10)
+stopifnot(all(c("Area", "Status", "Scope", "User_responsibility") %in% names(scope)))
+stopifnot("Nested structures" %in% scope$Area)
+stopifnot("Multiple membership" %in% scope$Area)
+stopifnot(any(scope$Status == "Experimental"))
+stopifnot(any(scope$Status == "Planned"))

@@ -6,6 +6,9 @@
 
 - Local Windows 11, R 4.5.1
 - GitHub Actions, Windows latest, R release
+- GitHub Actions, macOS latest, R release
+- GitHub Actions, Ubuntu latest, R release
+- GitHub Actions, Ubuntu latest, R devel
 
 ## Check notes
 

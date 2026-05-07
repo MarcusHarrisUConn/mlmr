@@ -675,6 +675,77 @@ mlm_default_packages <- function() {
   c("R", "mlmr", "lme4", "shiny", "bslib", "ggplot2")
 }
 
+mlm_supported_models <- function() {
+  data.frame(
+    Area = c(
+      "Model families",
+      "Nested structures",
+      "Three-level structures",
+      "Crossed random effects",
+      "Multiple membership",
+      "Repeated measures",
+      "Random effects",
+      "Centering",
+      "Interactions",
+      "Categorical predictors",
+      "Uploaded data",
+      "Diagnostics",
+      "Reporting exports",
+      "Software citations"
+    ),
+    Status = c(
+      "Supported",
+      "Supported",
+      "Supported",
+      "Experimental",
+      "Planned",
+      "Supported through grouping structure",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported through R contrasts",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported"
+    ),
+    Scope = c(
+      "Gaussian linear mixed models are the primary production path; binomial, Poisson, negative binomial, and Gamma GLMMs are available as advanced workflows.",
+      "Two-level nested models are supported in the app and backend.",
+      "Three-level nested models are supported through additional grouping factors and random-effect blocks.",
+      "Separate lme4 random-effect blocks can be specified; users should verify the design and interpretation carefully.",
+      "Weighted membership models are outside the current lme4-backed production scope.",
+      "Longitudinal models can be specified when occasions, persons, and higher-level units are represented by grouping variables.",
+      "Random intercepts, random slopes, and correlated or independent random-effect structures are supported.",
+      "No centering, grand-mean centering, and cluster-mean centering are supported for numeric predictors.",
+      "Fixed interactions and cross-level interaction-style terms are supported.",
+      "Factors and character variables are modeled using R's contrast system; dummy-coding summaries are reported.",
+      "CSV, TSV/TXT, Excel, SPSS, SAS, and Stata files are supported when optional readers are installed.",
+      "Convergence messages, singular-fit checks, gradients, overdispersion for GLMMs, and variance summaries are reported.",
+      "APA tables, raw LaTeX, equations, Quarto-ready reports, and reproducible R code are supported.",
+      "R/package version tables, APA software statements, and optional papaja citation code are supported."
+    ),
+    User_responsibility = c(
+      "Confirm distributional assumptions and link functions.",
+      "Confirm the grouping IDs correctly represent the design.",
+      "Confirm enough units exist at each higher level for stable estimation.",
+      "Confirm the design is truly crossed and not a miscoded hierarchy.",
+      "Use specialized methods outside mlmr for weighted multiple-membership models.",
+      "Confirm time is coded appropriately and that autocorrelation assumptions are acceptable.",
+      "Inspect convergence, singular fits, and whether the random-effects structure is supported by the data.",
+      "Match centering choices to the research question.",
+      "Interpret lower-order effects conditionally when interactions are included.",
+      "Confirm reference categories and contrasts before reporting.",
+      "Check variable types, missing data, and imported labels before fitting.",
+      "Treat diagnostics as evidence for revision, not as automatic pass/fail decisions.",
+      "Review all manuscript text, labels, and notation before submission.",
+      "Confirm package citations meet the target journal or style guide."
+    ),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+}
+
 package_version_safe <- function(package) {
   if (identical(package, "R")) {
     return(paste(R.version$major, R.version$minor, sep = "."))

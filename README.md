@@ -123,6 +123,16 @@ mlmr::mlm_software_apa()
 The software-reporting helpers create a manuscript-ready statement and table
 with the R version and package versions used in the analysis.
 
+To inspect the current production scope from R:
+
+```r
+mlmr::mlm_supported_models()
+```
+
+This returns a table describing supported, experimental, and planned modeling
+areas, along with the checks users remain responsible for before treating a
+model as final.
+
 For APA manuscript workflows that use `papaja`, `mlmr` also generates optional
 code using `papaja::r_refs()` and `papaja::cite_r()`:
 
@@ -149,6 +159,7 @@ The package includes vignettes for getting started and for equations/reporting:
 
 ```r
 vignette("getting-started", package = "mlmr")
+vignette("supported-models", package = "mlmr")
 vignette("equations-and-reporting", package = "mlmr")
 ```
 

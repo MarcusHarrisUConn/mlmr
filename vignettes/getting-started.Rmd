@@ -74,6 +74,18 @@ The public documentation site includes screenshots of these screens:
 
 <https://marcusharrisphd.com/mlmr/>
 
+The current supported-models scope is documented in:
+
+```{r supported-models}
+mlmr::mlm_supported_models()
+```
+
+For a longer discussion, see:
+
+```{r supported-vignette}
+vignette("supported-models", package = "mlmr")
+```
+
 ## Recommended First Workflow
 
 1. Open the app.

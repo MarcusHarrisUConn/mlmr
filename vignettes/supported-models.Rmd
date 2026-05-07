@@ -1,0 +1,99 @@
+---
+title: "Supported Models and Production Scope"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Supported Models and Production Scope}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Purpose
+
+`mlmr` is designed to make mixed-effects and multilevel models easier to
+specify, understand, teach, and report. The app is intentionally opinionated:
+it guides users through a declared modeling workflow while still exposing the
+underlying `lme4` formula, reproducible R code, equations, diagnostics, and
+manuscript-ready outputs.
+
+This article states the current software scope plainly so users know what is
+ready for routine use, what is advanced or experimental, and what remains future
+work.
+
+## Current Production Path
+
+The strongest current workflow is a Gaussian mixed-effects model for nested
+educational, psychological, health, or organizational data. The app is
+especially well suited for:
+
+- two-level nested models, such as students within schools;
+- three-level nested models, such as students within schools within districts;
+- random-intercept and random-slope models;
+- correlated or independent random-effects structures;
+- grand-mean and cluster-mean centering;
+- fixed interactions and cross-level interaction-style models;
+- APA-style tables, equations, Tau matrices, diagnostics, and reproducible
+  exports.
+
+The built-in HSB-style example is intentionally more complex than a minimal
+random-intercept model so users can see how centering, interactions, random
+slopes, and variance-covariance structures work together.
+
+## Supported Scope Table
+
+The same scope table is available programmatically:
+
+```{r scope}
+mlmr::mlm_supported_models()
+```
+
+This table is useful for instructors, analysts, and beta testers because it
+separates software support from statistical responsibility. A model can be
+available in the interface and still require careful evaluation of assumptions,
+sample size, convergence, and interpretation.
+
+## Advanced Workflows
+
+`mlmr` includes advanced pathways for GLMMs and flexible random-effect
+structures because real research often moves beyond strict nesting. These
+workflows are valuable, but they require more careful checking:
+
+- binomial, Poisson, negative binomial, and Gamma GLMMs should be checked for
+  outcome coding, link function, overdispersion, and convergence;
+- crossed random effects should be used only when the grouping variables truly
+  represent non-nested sources of variation;
+- longitudinal models can be represented through grouping variables and time
+  predictors, but users should evaluate residual patterns and time structures;
+- weighted multiple-membership models are not a current production feature.
+
+## What mlmr Does Not Replace
+
+`mlmr` does not replace statistical judgment. It helps users express and report
+models more clearly, but users remain responsible for:
+
+- deciding whether a mixed-effects model is appropriate for the design;
+- checking whether grouping factors and predictor levels are correctly declared;
+- choosing centering and contrast coding that match the research question;
+- evaluating convergence, singular fits, residual patterns, and influential
+  observations;
+- confirming that manuscript language matches the fitted model.
+
+## Production Readiness Standard
+
+For a model to be treated as production analysis, users should be able to:
+
+1. reproduce the fitted model from the exported R code;
+2. explain the centering, interactions, and random-effects choices;
+3. inspect the fixed effects, variance components, ICCs, and Tau matrix;
+4. review diagnostics and convergence messages;
+5. export manuscript tables, equations, and software citations;
+6. save a Quarto or script-based record of the full workflow.
+
+That standard is the guiding target for `mlmr` development.
