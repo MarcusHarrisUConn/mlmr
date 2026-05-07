@@ -181,16 +181,15 @@ the package first.
 
 CRAN automatically generates a PDF reference manual from package help files
 after a package is accepted. During development, the same kind of manual can be
-created locally with:
+created locally from the package root with:
 
-```powershell
-$paths = $env:PATH -split ';' | Where-Object { $_ -and ($_ -notmatch 'MiKTeX') }
-$env:PATH = 'C:\Users\mah22013\AppData\Roaming\TinyTeX\bin\windows;' + ($paths -join ';')
-R CMD Rd2pdf . --output=dev/mlmr-reference-manual.pdf
+```r
+devtools::build_manual()
 ```
 
-The PDF manual is useful for checking function documentation, but the pkgdown
-site and vignettes are the main user-facing guides during beta testing.
+This requires a working LaTeX installation. The PDF manual is useful for
+checking function documentation, but the pkgdown site and vignettes are the main
+user-facing guides during beta testing.
 
 ## Website Placement
 
