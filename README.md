@@ -71,6 +71,12 @@ install.packages("pak")
 pak::pak("MarcusHarrisUConn/mlmr")
 ```
 
+For the current public alpha prerelease:
+
+```r
+pak::pak("MarcusHarrisUConn/mlmr@v0.1.0-alpha.2")
+```
+
 You can also install with `remotes`:
 
 ```r

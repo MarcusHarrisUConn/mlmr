@@ -1,6 +1,6 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
+0 errors | 0 warnings | 2 notes
 
 ## Test environments
 
@@ -14,6 +14,10 @@
 
 - CRAN incoming reports "New submission"; this is expected for the first CRAN
   submission.
+- Local Windows reports "unable to verify current time" while checking for
+  future file timestamps. No future file timestamps were reported, and the
+  package passes the same check workflow on GitHub Actions across Windows,
+  macOS, Ubuntu release, and Ubuntu devel.
 
 ## Downstream dependencies
 

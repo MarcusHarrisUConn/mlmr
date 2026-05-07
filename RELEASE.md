@@ -15,8 +15,8 @@ This checklist is for the public beta and later CRAN release process.
 - [x] Add screenshots or short demo GIFs to documentation.
 - [x] Generate local PDF reference manual for documentation review.
 - [ ] Confirm `mlmr::run_mlmr()` launches from an installed package.
-- [ ] Create GitHub release `v0.1.0-alpha`.
-- [ ] Confirm release notes accurately describe production, experimental, and
+- [x] Create GitHub prerelease `v0.1.0-alpha.2`.
+- [x] Confirm release notes accurately describe production, experimental, and
       out-of-scope features.
 - [ ] Share install instructions with beta testers:
 

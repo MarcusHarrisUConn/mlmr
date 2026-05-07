@@ -2,6 +2,7 @@
 
 ## Public beta preparation
 
+- Published GitHub prerelease `v0.1.0-alpha.2` for structured beta testing.
 - Added a structured beta testing guide for early users and linked it from the
   documentation site.
 - Expanded the GitHub feedback template so testers report model structure,
