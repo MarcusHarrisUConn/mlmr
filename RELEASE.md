@@ -29,8 +29,8 @@ mlmr::run_mlmr()
 ## CRAN Release
 
 - [ ] Confirm package name availability immediately before submission.
-- [ ] Update `cran-comments.md` with current check environments.
-- [ ] Run `R CMD check --as-cran` locally.
+- [x] Update `cran-comments.md` with current check environments.
+- [x] Run `R CMD check --as-cran` locally.
 - [x] Run checks on Windows, macOS, Linux, and R-devel through GitHub Actions.
 - [ ] Check reverse dependencies if any exist.
 - [ ] Review CRAN Repository Policy.
@@ -42,3 +42,23 @@ mlmr::run_mlmr()
       and out-of-scope model features.
 - [ ] Submit to CRAN.
 - [ ] Respond to CRAN maintainer confirmation email.
+
+## Next Session: CRAN Rehearsal
+
+Before submitting, do one final rehearsal from a clean checkout:
+
+```r
+devtools::check(args = c("--no-manual", "--as-cran"))
+devtools::build()
+devtools::build_manual()
+```
+
+Then confirm:
+
+- the public pkgdown site contains no local machine paths;
+- `citation("mlmr")` works after installation;
+- `pak::pak("MarcusHarrisUConn/mlmr@v0.1.0-alpha.2")` installs cleanly;
+- `mlmr::run_mlmr()` launches from an installed package;
+- exported examples and vignettes are still fast enough for CRAN;
+- the CRAN submission should be version `0.1.0` or a small patch release after
+  beta feedback.
