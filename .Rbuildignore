@@ -9,9 +9,11 @@
 ^run_app\.R$
 ^www$
 ^DEMO\.md$
+^BETA_TESTING\.md$
 ^CONTRIBUTING\.md$
 ^RELEASE\.md$
 ^cran-comments\.md$
+^release-notes-v.*\.md$
 ^mlmr_.*\.tar\.gz$
 ^mlmr\.Rcheck$
 ^mlmr-Ex\.

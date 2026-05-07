@@ -14,6 +14,14 @@ formula, including centered predictor names, interactions, and random effects.
 \value{
 A model formula.
 }
+\details{
+The formula uses the effective predictor names created by the centering
+choices. For example, a predictor with \code{center = "CWC"} appears with a
+\code{_CWC} suffix. Correlated random slopes are represented with
+\code{(1 + slope | group)} syntax, whereas independent random slopes are
+represented with separate \code{(1 | group)} and \code{(0 + slope | group)}
+terms.
+}
 \examples{
 dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
 spec <- mlm_spec(

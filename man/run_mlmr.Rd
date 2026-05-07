@@ -17,6 +17,12 @@ The app opens with a built-in HSB-style example dataset and a preset model so
 users can test the complete workflow before uploading their own data. Uploaded
 data can be provided as CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files when the
 optional import packages are installed.
+
+The app is intended to guide model specification, estimation, diagnostics,
+equation display, APA-style tables, and reproducible exports. The strongest
+current production path is Gaussian two-level and three-level nested
+mixed-effects models. Use \code{\link{mlm_supported_models}()} to inspect the
+current supported, experimental, and planned scope.
 }
 \value{
 Runs the Shiny application. This function is called for its side effect and does
@@ -26,4 +32,9 @@ not return a modeling object.
 if (interactive()) {
   run_mlmr()
 }
+}
+\seealso{
+  \code{\link{mlm_supported_models}},
+  \code{\link{mlm_spec}},
+  \code{\link{mlm_fit}}
 }

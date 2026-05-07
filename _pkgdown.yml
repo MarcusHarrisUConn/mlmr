@@ -13,7 +13,7 @@ template:
 
 navbar:
   structure:
-    left: [intro, demo, reference, articles, news]
+    left: [intro, demo, beta, reference, articles, news]
     right: [github]
   components:
     intro:
@@ -22,6 +22,9 @@ navbar:
     demo:
       text: Demo
       href: DEMO.html
+    beta:
+      text: Beta testing
+      href: BETA_TESTING.html
     articles:
       text: Articles
       menu:

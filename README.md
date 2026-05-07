@@ -204,6 +204,10 @@ equations, APA tables, diagnostics, generated code, or uploaded-data experience:
 
 <https://github.com/MarcusHarrisUConn/mlmr/issues>
 
+For a structured checklist of what to test, see the beta testing guide:
+
+<https://marcusharrisphd.com/mlmr/BETA_TESTING.html>
+
 Helpful feedback includes:
 
 - the model structure you tried;

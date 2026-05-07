@@ -2,6 +2,10 @@
 
 ## Public beta preparation
 
+- Added a structured beta testing guide for early users and linked it from the
+  documentation site.
+- Expanded the GitHub feedback template so testers report model structure,
+  exported-code checks, and app section details.
 - Exported core backend helpers for model specification, formula generation,
   fitting, equations, APA tables, and software/package reporting.
 - Added `mlm_supported_models()` and a "Supported Models and Production Scope"
