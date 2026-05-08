@@ -263,16 +263,15 @@ ui <- page_navbar(
             ),
             div(
               class = "results-page",
-                    uiOutput("diagnostics_loading_banner"),
-                    card(card_header("Diagnostics"), tableOutput("diagnostics_table")),
+              card(card_header("Diagnostics"), tableOutput("diagnostics_table")),
               layout_columns(
                 col_widths = c(6, 6),
-                card(card_header("Residuals vs Fitted"), uiOutput("residual_fitted_loading"), plotOutput("residual_fitted_plot", height = "340px")),
-                card(card_header("Normal QQ Plot"), uiOutput("qq_loading"), plotOutput("qq_plot", height = "340px")),
-                card(card_header("Observed vs Fitted"), uiOutput("observed_fitted_loading"), plotOutput("observed_fitted_plot", height = "340px")),
-                card(card_header("Random Effects With Intervals"), uiOutput("random_effects_loading"), plotOutput("random_effects_interval_plot", height = "340px"))
+                card(card_header("Residuals vs Fitted"), plotOutput("residual_fitted_plot", height = "340px")),
+                card(card_header("Normal QQ Plot"), plotOutput("qq_plot", height = "340px")),
+                card(card_header("Observed vs Fitted"), plotOutput("observed_fitted_plot", height = "340px")),
+                card(card_header("Random Effects With Intervals"), plotOutput("random_effects_interval_plot", height = "340px"))
               ),
-              card(card_header("Model-Implied Lines by Group"), uiOutput("model_lines_loading"), plotOutput("model_lines_plot", height = "460px"))
+              card(card_header("Model-Implied Lines by Group"), plotOutput("model_lines_plot", height = "460px"))
             )
           )
         ),
@@ -344,6 +343,14 @@ ui <- page_navbar(
         card_header("Purpose"),
         p("mlmr is a free, open-source Shiny interface for fitting, teaching, and reporting multilevel models in R. The goal is to provide an HLM-style guided workflow while producing transparent lme4 code that users can inspect, copy, rerun, and publish."),
         p("The app is designed for researchers who want the conceptual clarity of level-by-level model building without being locked into private software. It supports uploaded data, a built-in HSB-style example, centering decisions, fixed and random effects, interactions, model diagnostics, APA-style tables, equations, and reproducible exports.")
+      ),
+      card(
+        card_header("Project Links"),
+        tags$ul(
+          tags$li(tags$a("GitHub repository", href = "https://github.com/MarcusHarrisUConn/mlmr", target = "_blank", rel = "noopener noreferrer")),
+          tags$li(tags$a("Package website and documentation", href = "https://marcusharrisphd.com/mlmr/", target = "_blank", rel = "noopener noreferrer")),
+          tags$li(tags$a("Creator: Marcus Harris, PhD", href = "https://marcusharrisphd.com", target = "_blank", rel = "noopener noreferrer"))
+        )
       ),
       layout_columns(
         col_widths = c(6, 6),
@@ -1179,28 +1186,6 @@ server <- function(input, output, session) {
     if (is.null(res)) return(NULL)
     groups <- unlist(res$spec$grouping, use.names = FALSE)
     selectInput("diagnostic_group", "Grouping factor for model lines", choices = groups, selected = first_or(groups))
-  })
-
-  diagnostic_loading <- function(message = "Preparing diagnostic plot...") {
-    res <- active_result()
-    if (is.null(res)) return(NULL)
-    div(class = "loading-note", span(class = "loading-dot"), message)
-  }
-
-  output$residual_fitted_loading <- renderUI(diagnostic_loading())
-  output$qq_loading <- renderUI(diagnostic_loading())
-  output$observed_fitted_loading <- renderUI(diagnostic_loading())
-  output$random_effects_loading <- renderUI(diagnostic_loading("Estimating random-effect intervals..."))
-  output$model_lines_loading <- renderUI(diagnostic_loading("Preparing group-specific model lines..."))
-
-  output$diagnostics_loading_banner <- renderUI({
-    res <- active_result()
-    if (is.null(res)) return(NULL)
-    div(
-      class = "diagnostics-progress",
-      div(class = "diagnostics-progress-text", "Preparing diagnostics. Larger random-effect models can take a few seconds."),
-      div(class = "diagnostics-progress-track", div(class = "diagnostics-progress-bar"))
-    )
   })
 
   diagnostic_df <- reactive({
