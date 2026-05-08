@@ -13,6 +13,7 @@
 ^CONTRIBUTING\.md$
 ^RELEASE\.md$
 ^cran-comments\.md$
+^CRAN_SUBMISSION\.md$
 ^release-notes-v.*\.md$
 ^mlmr_.*\.tar\.gz$
 ^mlmr\.Rcheck$

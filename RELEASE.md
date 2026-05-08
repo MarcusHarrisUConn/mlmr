@@ -33,13 +33,14 @@ mlmr::run_mlmr()
 - [x] Run `R CMD check --as-cran` locally.
 - [x] Run checks on Windows, macOS, Linux, and R-devel through GitHub Actions.
 - [x] Check reverse dependencies if any exist.
-- [ ] Review CRAN Repository Policy.
-- [ ] Confirm examples are fast, interactive examples are guarded, and vignettes
+- [x] Review CRAN Repository Policy.
+- [x] Confirm examples are fast, interactive examples are guarded, and vignettes
       are lightweight.
 - [x] Confirm no generated files, local paths, or development artifacts are in
       the built package.
 - [x] Confirm public documentation describes supported, experimental, planned,
       and out-of-scope model features.
+- [x] Create final maintainer handoff notes in `CRAN_SUBMISSION.md`.
 - [ ] Submit to CRAN.
 - [ ] Respond to CRAN maintainer confirmation email.
 
