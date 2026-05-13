@@ -631,10 +631,10 @@ mlm_fit <- function(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 20000) {
   formula <- build_formula(spec)
   control <- lme4::lmerControl(optimizer = optimizer, optCtrl = list(maxfun = maxfun))
   if (identical(spec$distribution, "gaussian")) {
-    fit <- lme4::lmer(formula, data = spec$data, REML = REML, control = control)
+    fit <- suppressMessages(lme4::lmer(formula, data = spec$data, REML = REML, control = control))
   } else if (identical(spec$distribution, "negative binomial")) {
     glmm_control <- lme4::glmerControl(optimizer = optimizer, optCtrl = list(maxfun = maxfun))
-    fit <- lme4::glmer.nb(formula, data = spec$data, control = glmm_control)
+    fit <- suppressMessages(lme4::glmer.nb(formula, data = spec$data, control = glmm_control))
   } else {
     glmm_control <- lme4::glmerControl(optimizer = optimizer, optCtrl = list(maxfun = maxfun))
     fam <- switch(
@@ -644,7 +644,7 @@ mlm_fit <- function(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 20000) {
       Gamma = stats::Gamma(link = spec$link),
       stop("Unsupported distribution: ", spec$distribution, call. = FALSE)
     )
-    fit <- lme4::glmer(formula, data = spec$data, family = fam, control = glmm_control)
+    fit <- suppressMessages(lme4::glmer(formula, data = spec$data, family = fam, control = glmm_control))
   }
   list(fit = fit, formula = formula, data = spec$data, centering_code = centered$code, spec = spec)
 }

@@ -18,3 +18,4 @@
 ^mlmr_.*\.tar\.gz$
 ^mlmr\.Rcheck$
 ^mlmr-Ex\.
+^Rplots\.pdf$

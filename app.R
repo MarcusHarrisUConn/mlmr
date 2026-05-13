@@ -1207,7 +1207,7 @@ server <- function(input, output, session) {
       ggplot(df, aes(fitted, residual)) +
         geom_hline(yintercept = 0, color = "#8a969c") +
         geom_point(alpha = 0.62, color = "#245a73") +
-        geom_smooth(method = "loess", se = FALSE, color = "#8b3f2f", linewidth = 0.8) +
+        geom_smooth(method = "loess", formula = y ~ x, se = FALSE, color = "#8b3f2f", linewidth = 0.8) +
         labs(x = "Fitted values", y = "Residuals") +
         theme_minimal(base_size = 12)
     })
@@ -1253,7 +1253,7 @@ server <- function(input, output, session) {
       plot_df$high <- plot_df$condval + 1.96 * plot_df$condsd
       ggplot(plot_df, aes(condval, grp)) +
         geom_vline(xintercept = 0, color = "#8a969c") +
-        geom_errorbarh(aes(xmin = low, xmax = high), height = 0, color = "#6b7a83") +
+        geom_segment(aes(x = low, xend = high, y = grp, yend = grp), color = "#6b7a83") +
         geom_point(color = "#245a73", size = 2) +
         labs(x = paste("Empirical Bayes estimate:", term), y = NULL) +
         theme_minimal(base_size = 12)
@@ -1285,6 +1285,11 @@ server <- function(input, output, session) {
     }
     rows <- lapply(names(history), function(label) {
       fit <- history[[label]]$result$fit
+      criterion <- if (inherits(fit, "lmerMod") && isTRUE(lme4::isREML(fit))) {
+        lme4::REMLcrit(fit)
+      } else {
+        stats::deviance(fit)
+      }
       data.frame(
         Model = label,
         REML = history[[label]]$REML,
@@ -1292,7 +1297,7 @@ server <- function(input, output, session) {
         AIC = round(stats::AIC(fit), 2),
         BIC = round(stats::BIC(fit), 2),
         logLik = round(as.numeric(stats::logLik(fit)), 2),
-        Deviance = round(stats::deviance(fit), 2),
+        Criterion = round(criterion, 2),
         Parameters = attr(stats::logLik(fit), "df"),
         Singular = lme4::isSingular(fit, tol = 1e-4),
         check.names = FALSE

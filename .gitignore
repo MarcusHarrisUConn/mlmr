@@ -6,6 +6,7 @@
 *.tar.gz
 *.log
 *.err.log
+Rplots.pdf
 .DS_Store
 Thumbs.db
 rsconnect/
