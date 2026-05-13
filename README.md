@@ -99,6 +99,26 @@ During local development, run the app directly from the project folder:
 shiny::runApp(".")
 ```
 
+## Docker
+
+You can also run `mlmr` in Docker for demos, workshops, or deployment testing:
+
+```bash
+docker build -t mlmr:local .
+docker run --rm -p 3838:3838 mlmr:local
+```
+
+Then open `localhost:3838` in your browser.
+
+With Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+See [DOCKER.md](DOCKER.md) for image publishing notes and GitHub Container
+Registry details.
+
 ## Use the Backend Directly
 
 The Shiny app is the guided interface, but the same model-building and reporting
