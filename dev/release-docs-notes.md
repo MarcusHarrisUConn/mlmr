@@ -47,12 +47,10 @@ screens after fitting the built-in example model:
 ## Local PDF Reference Manual
 
 CRAN creates the package PDF reference manual automatically from the `.Rd`
-documentation after acceptance. To create the same kind of manual locally on
-this machine, put TinyTeX ahead of MiKTeX and run:
+documentation after acceptance. To create the same kind of manual locally, make
+sure a working LaTeX distribution is available on `PATH` and run:
 
 ```powershell
-$paths = $env:PATH -split ';' | Where-Object { $_ -and ($_ -notmatch 'MiKTeX') }
-$env:PATH = 'C:\Users\mah22013\AppData\Roaming\TinyTeX\bin\windows;' + ($paths -join ';')
 R CMD Rd2pdf . --output=dev/mlmr-reference-manual.pdf
 ```
 

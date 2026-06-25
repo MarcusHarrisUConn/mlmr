@@ -1,4 +1,19 @@
 example_hsb <- function(n_schools = 24, min_students = 18, max_students = 34, seed = 20260423) {
+  if (!is.numeric(n_schools) || length(n_schools) != 1 || is.na(n_schools) || n_schools < 2) {
+    stop("`n_schools` must be a single number greater than or equal to 2.", call. = FALSE)
+  }
+  if (!is.numeric(min_students) || !is.numeric(max_students) ||
+      length(min_students) != 1 || length(max_students) != 1 ||
+      is.na(min_students) || is.na(max_students) ||
+      min_students < 1 || max_students < min_students) {
+    stop("`min_students` and `max_students` must define a valid positive range.", call. = FALSE)
+  }
+  if (!is.numeric(seed) || length(seed) != 1 || is.na(seed)) {
+    stop("`seed` must be a single numeric value.", call. = FALSE)
+  }
+  n_schools <- as.integer(n_schools)
+  min_students <- as.integer(min_students)
+  max_students <- as.integer(max_students)
   set.seed(seed)
   n_districts <- max(4, floor(n_schools / 4))
   school_to_district <- sprintf("D%02d", rep(seq_len(n_districts), length.out = n_schools))
@@ -535,6 +550,27 @@ imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed
 mlm_spec <- function(outcome, distribution = "gaussian", link = "identity", fixed = list(),
                      grouping = list(), nesting = NULL, structure = "nested", random = list(),
                      interactions = list(), predictor_levels = list(), data = NULL) {
+  if (!is.character(outcome) || length(outcome) != 1 || !nzchar(outcome)) {
+    stop("`outcome` must be a single variable name.", call. = FALSE)
+  }
+  supported_distributions <- c("gaussian", "binomial", "poisson", "negative binomial", "Gamma")
+  if (!is.character(distribution) || length(distribution) != 1 || !distribution %in% supported_distributions) {
+    stop("Unsupported distribution: ", distribution, call. = FALSE)
+  }
+  if (!is.character(link) || length(link) != 1 || !nzchar(link)) {
+    stop("`link` must be a single link-function name.", call. = FALSE)
+  }
+  if (!is.list(fixed) || !is.list(grouping) || !is.list(random) ||
+      !is.list(interactions) || !is.list(predictor_levels)) {
+    stop("`fixed`, `grouping`, `random`, `interactions`, and `predictor_levels` must be lists.", call. = FALSE)
+  }
+  if (!is.null(data)) {
+    selected <- unique(c(outcome, names(fixed), unlist(grouping, use.names = FALSE), unlist(interactions, use.names = FALSE)))
+    missing_selected <- setdiff(selected, names(data))
+    if (length(missing_selected)) {
+      stop("The following selected variables are missing from `data`: ", paste(missing_selected, collapse = ", "), call. = FALSE)
+    }
+  }
   structure(
     list(
       outcome = outcome,

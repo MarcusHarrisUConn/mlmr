@@ -12,6 +12,7 @@
 ^BETA_TESTING\.md$
 ^CONTRIBUTING\.md$
 ^RELEASE\.md$
+^PUBLICATION_READINESS\.md$
 ^cran-comments\.md$
 ^CRAN_SUBMISSION\.md$
 ^DOCKER\.md$

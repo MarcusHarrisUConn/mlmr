@@ -2,6 +2,15 @@
 
 ## Public beta preparation
 
+- Added a publication-readiness checklist for the next CRAN and beta-testing
+  milestones.
+- Strengthened validation for example-data generation and model specification
+  when selected variables are missing from the data.
+- Expanded backend tests for manuscript-facing outputs, including APA tables,
+  raw LaTeX, wrapped equations, Quarto report text, software reporting, and
+  app/backend synchronization.
+- Expanded the GitHub bug-report template so testers can report model
+  structure, centering, interactions, and export-specific issues more clearly.
 - Published GitHub prerelease `v0.1.0-alpha.2` for structured beta testing.
 - Added a structured beta testing guide for early users and linked it from the
   documentation site.

@@ -18,6 +18,12 @@ model_readiness_has_stops <- get_mlmr("model_readiness_has_stops")
 apa_fixed_table <- get_mlmr("apa_fixed_table")
 apa_tables_latex_document <- get_mlmr("apa_tables_latex_document")
 apa_tables_html_document <- get_mlmr("apa_tables_html_document")
+raw_latex_bundle <- get_mlmr("raw_latex_bundle")
+latex_wrapped_equation <- get_mlmr("latex_wrapped_equation")
+manuscript_report_markdown <- get_mlmr("manuscript_report_markdown")
+generate_repro_code <- get_mlmr("generate_repro_code")
+
+stopifnot(inherits(tryCatch(example_hsb(n_schools = 1), error = identity), "error"))
 
 dat <- example_hsb(n_schools = 8, min_students = 8, max_students = 10, seed = 101)
 
@@ -35,6 +41,19 @@ spec <- mlm_spec(
   interactions = list(c("ses", "sector")),
   data = dat
 )
+
+missing_var_error <- tryCatch(
+  mlm_spec(
+    outcome = "mathscore",
+    fixed = list(not_in_data = list(center = "none")),
+    grouping = list(schoolid = "schoolid"),
+    random = list(schoolid = list(intercept = TRUE, slopes = character(), correlation = TRUE)),
+    data = dat
+  ),
+  error = identity
+)
+stopifnot(inherits(missing_var_error, "error"))
+stopifnot(grepl("missing from `data`", conditionMessage(missing_var_error), fixed = TRUE))
 
 formula_text <- paste(deparse(build_formula(spec), width.cutoff = 500), collapse = " ")
 formula_text_public <- paste(deparse(mlm_formula(spec), width.cutoff = 500), collapse = " ")
@@ -80,6 +99,10 @@ stopifnot(grepl("\\beta_{0j}", eq$equations[[1]], fixed = TRUE))
 stopifnot(grepl("\\gamma_{00}", eq$combined, fixed = TRUE))
 stopifnot(length(eq$tau) >= 1)
 
+wrapped_eq <- latex_wrapped_equation(eq$combined, terms_per_line = 2)
+stopifnot(grepl("\\begin{array}{rcl}", wrapped_eq, fixed = TRUE))
+stopifnot(!grepl("\\begin{aligned}", wrapped_eq, fixed = TRUE))
+
 tau_labels <- tau_label_table(fit)
 stopifnot(nrow(tau_labels) >= 1)
 stopifnot(all(c("Group", "Matrix Index", "Coefficient", "Estimated") %in% names(tau_labels)))
@@ -108,6 +131,23 @@ stopifnot(all(c("fixed_effects", "dummy_coding", "variance_components", "icc", "
 
 tables_latex_public <- mlm_apa_tables(fit, format = "latex")
 stopifnot(grepl("Software and R packages", tables_latex_public, fixed = TRUE))
+stopifnot(grepl("\\resizebox{\\textwidth}{!}", tables_latex_public, fixed = TRUE))
+
+raw_latex <- raw_latex_bundle(fit)
+stopifnot(grepl("% Table 1. Fixed effects", raw_latex, fixed = TRUE))
+stopifnot(grepl("% Table 5. Software and R packages", raw_latex, fixed = TRUE))
+stopifnot(grepl("% Combined full equation", raw_latex, fixed = TRUE))
+stopifnot(grepl("% Tau variance-covariance structures", raw_latex, fixed = TRUE))
+
+report_markdown <- paste(manuscript_report_markdown(fit), collapse = "\n")
+stopifnot(grepl("mlmr Multilevel Model Report", report_markdown, fixed = TRUE))
+stopifnot(grepl("Optional papaja Citation Workflow", report_markdown, fixed = TRUE))
+stopifnot(grepl("Raw LaTeX", report_markdown, fixed = TRUE))
+
+repro_code <- paste(generate_repro_code(fit, REML = TRUE, optimizer = "bobyqa", maxfun = 10000), collapse = "\n")
+stopifnot(grepl("Table 1: APA Fixed Effects", repro_code, fixed = TRUE))
+stopifnot(grepl("Table 5: Software and R Packages", repro_code, fixed = TRUE))
+stopifnot(grepl("Raw LaTeX Equations", repro_code, fixed = TRUE))
 
 software_table <- mlm_software_table()
 stopifnot(all(c("Software", "Version", "Purpose", "Citation") %in% names(software_table)))
@@ -144,3 +184,9 @@ stopifnot("Nested structures" %in% scope$Area)
 stopifnot("Multiple membership" %in% scope$Area)
 stopifnot(any(scope$Status == "Experimental"))
 stopifnot(any(scope$Status == "Planned"))
+
+if (file.exists("R/mlm_core.R") && file.exists("inst/app/R/mlm_core.R")) {
+  root_core <- readLines("R/mlm_core.R", warn = FALSE)
+  app_core <- readLines("inst/app/R/mlm_core.R", warn = FALSE)
+  stopifnot(identical(root_core, app_core))
+}
