@@ -29,7 +29,7 @@ The app is built around four practical goals:
 - show equations, variance components, and Tau matrix structure;
 - export tables, code, LaTeX, and Quarto-ready reports.
 
-## Install the Development Version
+## Install the Public Beta
 
 ```{r install}
 install.packages("remotes")
@@ -141,7 +141,7 @@ are the main user-facing manuals because they explain the workflow in context.
 
 ## Current Status
 
-`mlmr` is in early development. The current version is suitable for testing,
-teaching, and feedback, but it should not yet be treated as a final statistical
-package for production research without independent verification of the fitted
-model and diagnostics.
+`mlmr` is in public beta. The current version is suitable for structured demo
+testing, teaching, and feedback. Users should still independently verify model
+specification, convergence, diagnostics, and interpretation before using fitted
+results in production research.

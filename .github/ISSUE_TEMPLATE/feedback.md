@@ -31,6 +31,7 @@ If uploaded data, please describe the grouping structure and outcome type.
 - Outcome:
 - Grouping factor(s):
 - Predictor levels:
+- Centering choices:
 - Random effects:
 - Interactions:
 - Distribution/link, if not Gaussian:
@@ -61,5 +62,17 @@ Paste any relevant R code, warning, or error message here.
 - [ ] Reproducible R code ran successfully
 - [ ] APA tables were usable
 - [ ] LaTeX copied into my editor
+- [ ] Equations and Tau matrix were understandable
+- [ ] Software/package reporting was useful
 - [ ] Quarto report exported successfully
 - [ ] I did not test exports
+
+## Publication-readiness rating
+
+How close did this feel to something you could use in teaching, a thesis, or a
+manuscript workflow?
+
+- [ ] Ready for my use case now
+- [ ] Close, but needs minor polish
+- [ ] Useful demo, but not ready for my workflow
+- [ ] I could not complete the workflow

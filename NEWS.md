@@ -11,6 +11,10 @@
   app/backend synchronization.
 - Expanded the GitHub bug-report template so testers can report model
   structure, centering, interactions, and export-specific issues more clearly.
+- Added a local publication-readiness rehearsal script that checks app/backend
+  copy synchronization, public documentation for local paths, release-file
+  presence, and source tarball contents.
+- Added GitHub issue-template links to the documentation and beta testing guide.
 - Published GitHub prerelease `v0.1.0-alpha.2` for structured beta testing.
 - Added a structured beta testing guide for early users and linked it from the
   documentation site.

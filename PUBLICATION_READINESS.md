@@ -67,3 +67,15 @@ Do not submit to CRAN until all of the following are true:
 - The built source tarball contains no development artifacts or local paths.
 - A human click-through of the built-in example model succeeds.
 - The public documentation site accurately states the current production scope.
+
+## Local Rehearsal Command
+
+Run the maintainer readiness script before any beta tag or CRAN upload:
+
+```r
+source("dev/check-publication-readiness.R")
+```
+
+This script checks synchronized app/backend copies, public documentation for
+local machine paths, expected release files, and the latest source tarball for
+excluded maintainer artifacts.

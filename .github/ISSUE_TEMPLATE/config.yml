@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: mlmr documentation
+    url: https://marcusharrisphd.com/mlmr/
+    about: Read tutorials, supported-models scope, and reference documentation.
+  - name: Beta testing guide
+    url: https://marcusharrisphd.com/mlmr/BETA_TESTING.html
+    about: See the structured checklist for testing the Shiny app.

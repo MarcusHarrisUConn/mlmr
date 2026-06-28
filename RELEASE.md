@@ -41,6 +41,7 @@ mlmr::run_mlmr()
 - [x] Confirm public documentation describes supported, experimental, planned,
       and out-of-scope model features.
 - [x] Create final maintainer handoff notes in `CRAN_SUBMISSION.md`.
+- [ ] Run `source("dev/check-publication-readiness.R")`.
 - [ ] Submit to CRAN.
 - [ ] Respond to CRAN maintainer confirmation email.
 
@@ -49,6 +50,7 @@ mlmr::run_mlmr()
 Before submitting, do one final rehearsal from a clean checkout:
 
 ```r
+source("dev/check-publication-readiness.R")
 devtools::check(args = c("--no-manual", "--as-cran"))
 devtools::build()
 devtools::build_manual()

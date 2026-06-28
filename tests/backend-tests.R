@@ -190,3 +190,15 @@ if (file.exists("R/mlm_core.R") && file.exists("inst/app/R/mlm_core.R")) {
   app_core <- readLines("inst/app/R/mlm_core.R", warn = FALSE)
   stopifnot(identical(root_core, app_core))
 }
+
+if (file.exists("app.R") && file.exists("inst/app/app.R")) {
+  root_app <- readLines("app.R", warn = FALSE)
+  installed_app <- readLines("inst/app/app.R", warn = FALSE)
+  stopifnot(identical(root_app, installed_app))
+}
+
+if (file.exists("www/style.css") && file.exists("inst/app/www/style.css")) {
+  root_css <- readLines("www/style.css", warn = FALSE)
+  installed_css <- readLines("inst/app/www/style.css", warn = FALSE)
+  stopifnot(identical(root_css, installed_css))
+}
