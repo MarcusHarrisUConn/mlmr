@@ -1,6 +1,6 @@
 cff-version: 1.2.0
 message: "If you use mlmr, please cite it using this metadata."
-title: "mlmr: Mixed-Effects and Multilevel Models in R"
+title: "mlmr: A Guided Interface for Mixed-Effects and Multilevel Models"
 version: "0.1.0"
 date-released: "2026-07-02"
 authors:

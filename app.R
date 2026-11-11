@@ -4,7 +4,9 @@ if (length(missing_packages)) {
   stop(
     "Missing required package(s): ",
     paste(missing_packages, collapse = ", "),
-    ". Run source('install_packages.R') from this folder, then relaunch the app.",
+    ". Install with install.packages(c(",
+    paste(sprintf("\"%s\"", missing_packages), collapse = ", "),
+    ")), then relaunch the app.",
     call. = FALSE
   )
 }
@@ -863,7 +865,7 @@ server <- function(input, output, session) {
   output$vcov_template <- renderPlot({
     rand <- random_spec()
     focus <- input$random_group_focus %||% input$primary_group %||% first_or(names(rand))
-    block <- rand[[focus]] %||% first_or(rand)
+    block <- if (is.null(focus)) NULL else rand[[focus]] %||% first_or(rand)
     req(!is.null(block))
     slopes <- block$slopes %||% character()
     labels <- c(if (isTRUE(block$intercept)) "Intercept", slopes)
@@ -887,7 +889,7 @@ server <- function(input, output, session) {
   output$vcov_template_note <- renderUI({
     rand <- random_spec()
     focus <- input$random_group_focus %||% input$primary_group %||% first_or(names(rand))
-    block <- rand[[focus]] %||% first_or(rand)
+    block <- if (is.null(focus)) NULL else rand[[focus]] %||% first_or(rand)
     if (is.null(block)) return(NULL)
     div(
       class = "mode-note",

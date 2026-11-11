@@ -94,3 +94,14 @@ test_that("print methods summarise specifications and results", {
   expect_output(print(result), "Observations: ")
   expect_output(print(result), "ses_CWC:sectorPublic", fixed = TRUE)
 })
+
+test_that("example_hsb is reproducible and leaves the random stream alone", {
+  expect_identical(example_hsb(n_schools = 4, seed = 1), example_hsb(n_schools = 4, seed = 1))
+  set.seed(99)
+  expected <- stats::runif(1)
+  set.seed(99)
+  invisible(example_hsb(n_schools = 4, seed = 1))
+  expect_identical(stats::runif(1), expected)
+  expect_error(example_hsb(seed = "a"), "single numeric value or NULL")
+  expect_s3_class(example_hsb(n_schools = 4, seed = NULL), "data.frame")
+})

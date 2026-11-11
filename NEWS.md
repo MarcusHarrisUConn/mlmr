@@ -57,6 +57,19 @@
 - Added a `testthat` suite covering specification, centering, fitting,
   equations, reporting, readiness checks, and app synchronization.
 
+## CRAN preparation
+
+- Retitled the package "A Guided Interface for Mixed-Effects and Multilevel
+  Models" and added method references to the Description.
+- `example_hsb()` no longer changes the caller's random-number state, and
+  accepts `seed = NULL` to draw from the current stream.
+- Examples run without `\donttest{}` wrappers.
+- The app no longer errors in the variance-covariance preview when no grouping
+  factor is selected, and its missing-package message no longer points to a
+  script that is not installed.
+- Added an automated test that fits the example model in the bundled app and
+  checks that every output renders.
+
 ## Public beta preparation
 
 - Added HLM-style feature parity tracking with `mlm_hlm8_parity()`, plus a

@@ -71,20 +71,16 @@ and teaching; users should review notation and substantive labels before
 publication.
 }
 \examples{
-\donttest{
-if (requireNamespace("lme4", quietly = TRUE)) {
-  dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
-  spec <- mlm_spec(
-    outcome = "mathscore",
-    fixed = list(ses = list(center = "CWC")),
-    grouping = list(schoolid = "schoolid"),
-    random = list(schoolid = list(intercept = TRUE, slopes = character(),
-      correlation = TRUE)),
-    data = dat
-  )
-  result <- mlm_fit(spec)
-  mlm_apa_tables(result)
-  mlm_latex_equations(result)
-}
-}
+dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
+spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(ses = list(center = "CWC")),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE, slopes = character(),
+    correlation = TRUE)),
+  data = dat
+)
+result <- mlm_fit(spec)
+mlm_apa_tables(result)
+mlm_latex_equations(result)
 }

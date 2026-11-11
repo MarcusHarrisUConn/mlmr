@@ -8,7 +8,10 @@ example_hsb(n_schools = 24, min_students = 18, max_students = 34,
 \arguments{
 \item{n_schools}{Number of schools to simulate.}
 \item{min_students, max_students}{Minimum and maximum number of students per school.}
-\item{seed}{Random seed used to make the generated data reproducible.}
+\item{seed}{Random seed used to make the generated data reproducible. The
+caller's random-number state is restored afterwards, so calling
+\code{example_hsb()} does not change later random draws. Use \code{NULL} to
+draw from the current random-number stream instead.}
 }
 \description{
 Generates the built-in HSB-style example dataset used by the \pkg{mlmr}

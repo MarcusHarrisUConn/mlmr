@@ -25,6 +25,13 @@ excluded from the CRAN source package by `.Rbuildignore`.
   Ubuntu release, and Ubuntu devel.
 - pkgdown deployment: passing.
 - Installed-package smoke test: `mlmr::run_mlmr()` launches and responds locally.
+- Automated app test: `tests/testthat/test-app.R` fits the example model in the
+  bundled app and requires every output to render (skipped on CRAN).
+- Reviewer-facing items addressed: title without "in R", method references
+  with DOIs in the Description, unwrapped examples, absolute README links,
+  `example_hsb()` restores the caller's random-number state.
+- Still to run by the maintainer before upload: win-builder (R-devel and
+  R-release) and, optionally, R-hub. Results are emailed to the maintainer.
 - `citation("mlmr")`: works after installation.
 - Public documentation scan: no local machine paths detected.
 - Source tarball scan: no development folders, generated docs site, release

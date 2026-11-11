@@ -5,8 +5,7 @@
 
 ## Test environments
 
-- Local Windows 11, R 4.5.1
-- Local macOS Tahoe 26.5.1, R 4.6.1
+- Local macOS Tahoe 26.6.2, R 4.6.1
 - GitHub Actions, Windows latest, R release
 - GitHub Actions, macOS latest, R release
 - GitHub Actions, Ubuntu latest, R release
@@ -19,6 +18,10 @@
 - The local macOS check also reports that HTML validation was skipped because
   the available `tidy` executable is not recent enough. This is a local
   toolchain note and is not present on the full CI check matrix.
+
+- The package title does not contain "in R", and the Description cites the
+  methods the package builds on with DOIs.
+- All examples run unwrapped and complete in well under one second each.
 
 ## Downstream dependencies
 

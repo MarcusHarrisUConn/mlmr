@@ -44,21 +44,17 @@ tables, equations, and reproducible R code into a named list.
 \code{mlm_publication_bundle()} returns a named list of publication materials.
 }
 \examples{
-\donttest{
-if (requireNamespace("lme4", quietly = TRUE)) {
-  dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
-  spec <- mlm_spec(
-    outcome = "mathscore",
-    fixed = list(ses = list(center = "CWC")),
-    grouping = list(schoolid = "schoolid"),
-    random = list(schoolid = list(intercept = TRUE, slopes = character(),
-      correlation = TRUE)),
-    data = dat
-  )
-  result <- mlm_fit(spec)
-  mlm_reproducibility_check(result)
-  mlm_methods_text(result)
-  names(mlm_publication_bundle(result))
-}
-}
+dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
+spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(ses = list(center = "CWC")),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE, slopes = character(),
+    correlation = TRUE)),
+  data = dat
+)
+result <- mlm_fit(spec)
+mlm_reproducibility_check(result)
+mlm_methods_text(result)
+names(mlm_publication_bundle(result))
 }

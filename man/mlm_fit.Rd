@@ -52,20 +52,16 @@ random effects are specified. Users should inspect convergence messages, singula
 patterns, and whether the random-effects structure is supported by the data.
 }
 \examples{
-\donttest{
-if (requireNamespace("lme4", quietly = TRUE)) {
-  dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
-  spec <- mlm_spec(
-    outcome = "mathscore",
-    fixed = list(ses = list(center = "CWC")),
-    grouping = list(schoolid = "schoolid"),
-    random = list(schoolid = list(intercept = TRUE, slopes = character(),
-      correlation = TRUE)),
-    data = dat
-  )
-  result <- mlm_fit(spec)
-  result
-  summary(result$fit)
-}
-}
+dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
+spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(ses = list(center = "CWC")),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE, slopes = character(),
+    correlation = TRUE)),
+  data = dat
+)
+result <- mlm_fit(spec)
+result
+summary(result$fit)
 }

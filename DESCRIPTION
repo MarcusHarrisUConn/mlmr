@@ -1,21 +1,23 @@
 Package: mlmr
-Title: Mixed-Effects and Multilevel Models in R
+Title: A Guided Interface for Mixed-Effects and Multilevel Models
 Version: 0.1.0
 Authors@R: person("Marcus", "Harris", role = c("aut", "cre"), email = "marcus.harris.uconn@gmail.com")
-Author: Marcus Harris [aut, cre]
-Maintainer: Marcus Harris <marcus.harris.uconn@gmail.com>
 Description: Provides a guided Shiny interface and reusable R helpers for
     specifying, fitting, explaining, and reporting mixed-effects and multilevel
-    models with 'lme4'. The package supports centering decisions, nested and
-    flexible random-effects structures, interaction terms, level-by-level and
-    combined equations, APA-style tables, diagnostics, reproducible code, and
-    software citation support for manuscript workflows.
+    models with 'lme4' (Bates, Maechler, Bolker, and Walker, 2015,
+    <doi:10.18637/jss.v067.i01>). The package supports grand-mean and
+    cluster-mean centering (Enders and Tofighi, 2007,
+    <doi:10.1037/1082-989X.12.2.121>), nested and crossed random-effects
+    structures, interaction terms, level-by-level and combined equations,
+    APA-style tables, diagnostics, reproducible code, and software citation
+    support for manuscript workflows.
 License: MIT + file LICENSE
 URL: https://marcusharrisphd.com/mlmr/, https://github.com/MarcusHarrisUConn/mlmr
 BugReports: https://github.com/MarcusHarrisUConn/mlmr/issues
 Encoding: UTF-8
-Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.2
+Language: en-US
+Depends:
+    R (>= 3.6.0)
 Imports:
     shiny,
     bslib,

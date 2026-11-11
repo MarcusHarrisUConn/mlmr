@@ -124,7 +124,7 @@ With Docker Compose:
 docker compose up --build
 ```
 
-See [DOCKER.md](DOCKER.md) for image publishing notes and GitHub Container
+See [DOCKER.md](https://github.com/MarcusHarrisUConn/mlmr/blob/main/DOCKER.md) for image publishing notes and GitHub Container
 Registry details.
 
 ## Use the Backend Directly
@@ -255,7 +255,7 @@ Helpful feedback includes:
 - warning or error messages;
 - what you expected to happen instead.
 
-For a short guided walkthrough, see [DEMO.md](DEMO.md).
+For a short guided walkthrough, see [DEMO.md](https://github.com/MarcusHarrisUConn/mlmr/blob/main/DEMO.md).
 
 ## Current Status
 

@@ -8,13 +8,25 @@ example_hsb <- function(n_schools = 24, min_students = 18, max_students = 34, se
       min_students < 1 || max_students < min_students) {
     stop("`min_students` and `max_students` must define a valid positive range.", call. = FALSE)
   }
-  if (!is.numeric(seed) || length(seed) != 1 || is.na(seed)) {
-    stop("`seed` must be a single numeric value.", call. = FALSE)
+  if (!is.null(seed) && (!is.numeric(seed) || length(seed) != 1 || is.na(seed))) {
+    stop("`seed` must be a single numeric value or NULL.", call. = FALSE)
   }
   n_schools <- as.integer(n_schools)
   min_students <- as.integer(min_students)
   max_students <- as.integer(max_students)
-  set.seed(seed)
+  if (!is.null(seed)) {
+    # Generate reproducible data without disturbing the caller's random stream.
+    had_seed <- exists(".Random.seed", envir = globalenv(), inherits = FALSE)
+    old_seed <- if (had_seed) get(".Random.seed", envir = globalenv(), inherits = FALSE)
+    on.exit({
+      if (had_seed) {
+        assign(".Random.seed", old_seed, envir = globalenv())
+      } else if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+        rm(".Random.seed", envir = globalenv())
+      }
+    }, add = TRUE)
+    set.seed(seed)
+  }
   n_districts <- max(4, floor(n_schools / 4))
   school_to_district <- sprintf("D%02d", rep(seq_len(n_districts), length.out = n_schools))
   school_sizes <- sample(min_students:max_students, n_schools, replace = TRUE)

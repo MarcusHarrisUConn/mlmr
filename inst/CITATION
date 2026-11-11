@@ -1,6 +1,6 @@
 bibentry(
   bibtype = "Manual",
-  title = "mlmr: Mixed-Effects and Multilevel Models in R",
+  title = "mlmr: A Guided Interface for Mixed-Effects and Multilevel Models",
   author = person("Marcus", "Harris"),
   year = "2026",
   note = "R package version 0.1.0",

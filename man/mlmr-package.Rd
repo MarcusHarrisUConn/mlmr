@@ -2,7 +2,7 @@
 \name{mlmr-package}
 \alias{mlmr}
 \alias{mlmr-package}
-\title{Mixed-Effects and Multilevel Models in R}
+\title{A Guided Interface for Mixed-Effects and Multilevel Models}
 \description{
   \pkg{mlmr} provides a guided Shiny interface and supporting R toolkit for
   fitting, understanding, and reporting mixed-effects and multilevel models

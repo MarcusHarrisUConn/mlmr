@@ -44,10 +44,6 @@ metadata.
 \examples{
 mlm_hlm8_parity()
 mlm_validation_benchmarks()
-\donttest{
-if (requireNamespace("lme4", quietly = TRUE)) {
-  mlm_validation_benchmarks(run = TRUE)
-  names(mlm_validation_report())
-}
-}
+mlm_validation_benchmarks(run = TRUE)
+names(mlm_validation_report())
 }
