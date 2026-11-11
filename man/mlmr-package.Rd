@@ -19,13 +19,21 @@
   Launch the app with \code{\link{run_mlmr}()}.
 
   Inspect the current production scope with
-  \code{\link{mlm_supported_models}()}.
+  \code{\link{mlm_supported_models}()}. Inspect HLM-style parity and validation
+  evidence with \code{\link{mlm_hlm8_parity}()} and
+  \code{\link{mlm_validation_report}()}.
+
+  Create manuscript and reproducibility materials with
+  \code{\link{mlm_publication_bundle}()}.
 
   To cite the package, use \code{citation("mlmr")}.
 }
 \seealso{
   \code{\link{run_mlmr}},
-  \code{\link{mlm_supported_models}}
+  \code{\link{mlm_supported_models}},
+  \code{\link{mlm_hlm8_parity}},
+  \code{\link{mlm_validation_report}},
+  \code{\link{mlm_publication_bundle}}
 }
 \author{
   Marcus Harris

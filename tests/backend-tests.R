@@ -11,15 +11,23 @@ mlm_apa_tables <- get_mlmr("mlm_apa_tables")
 mlm_software_table <- get_mlmr("mlm_software_table")
 mlm_software_apa <- get_mlmr("mlm_software_apa")
 mlm_papaja_code <- get_mlmr("mlm_papaja_code")
+mlm_reproducibility_check <- get_mlmr("mlm_reproducibility_check")
+mlm_methods_text <- get_mlmr("mlm_methods_text")
+mlm_publication_bundle <- get_mlmr("mlm_publication_bundle")
 mlm_supported_models <- get_mlmr("mlm_supported_models")
+mlm_hlm8_parity <- get_mlmr("mlm_hlm8_parity")
+mlm_validation_benchmarks <- get_mlmr("mlm_validation_benchmarks")
+mlm_validation_report <- get_mlmr("mlm_validation_report")
 tau_label_table <- get_mlmr("tau_label_table")
 model_readiness_table <- get_mlmr("model_readiness_table")
 model_readiness_has_stops <- get_mlmr("model_readiness_has_stops")
+model_guidance <- get_mlmr("model_guidance")
 apa_fixed_table <- get_mlmr("apa_fixed_table")
 apa_tables_latex_document <- get_mlmr("apa_tables_latex_document")
 apa_tables_html_document <- get_mlmr("apa_tables_html_document")
 raw_latex_bundle <- get_mlmr("raw_latex_bundle")
 latex_wrapped_equation <- get_mlmr("latex_wrapped_equation")
+equation_html <- get_mlmr("equation_html")
 manuscript_report_markdown <- get_mlmr("manuscript_report_markdown")
 generate_repro_code <- get_mlmr("generate_repro_code")
 
@@ -103,6 +111,12 @@ wrapped_eq <- latex_wrapped_equation(eq$combined, terms_per_line = 2)
 stopifnot(grepl("\\begin{array}{rcl}", wrapped_eq, fixed = TRUE))
 stopifnot(!grepl("\\begin{aligned}", wrapped_eq, fixed = TRUE))
 
+rendered_eq <- equation_html(c(eq$equations, eq$combined, eq$tau))
+stopifnot(grepl("equation-rendered", rendered_eq, fixed = TRUE))
+stopifnot(grepl("&beta;", rendered_eq, fixed = TRUE))
+stopifnot(grepl("<sub>", rendered_eq, fixed = TRUE))
+stopifnot(grepl("eq-matrix", rendered_eq, fixed = TRUE))
+
 tau_labels <- tau_label_table(fit)
 stopifnot(nrow(tau_labels) >= 1)
 stopifnot(all(c("Group", "Matrix Index", "Coefficient", "Estimated") %in% names(tau_labels)))
@@ -141,8 +155,25 @@ stopifnot(grepl("% Tau variance-covariance structures", raw_latex, fixed = TRUE)
 
 report_markdown <- paste(manuscript_report_markdown(fit), collapse = "\n")
 stopifnot(grepl("mlmr Multilevel Model Report", report_markdown, fixed = TRUE))
+stopifnot(grepl("Publication Readiness", report_markdown, fixed = TRUE))
+stopifnot(grepl("Reproducibility Checklist", report_markdown, fixed = TRUE))
 stopifnot(grepl("Optional papaja Citation Workflow", report_markdown, fixed = TRUE))
 stopifnot(grepl("Raw LaTeX", report_markdown, fixed = TRUE))
+
+repro_check <- mlm_reproducibility_check(fit, REML = TRUE, optimizer = "bobyqa", maxfun = 10000)
+stopifnot(nrow(repro_check) >= 8)
+stopifnot(all(c("Status", "Item", "Evidence", "Suggested Review") %in% names(repro_check)))
+stopifnot("Model formula captured" %in% repro_check$Item)
+stopifnot("Software versions captured" %in% repro_check$Item)
+
+methods_text <- mlm_methods_text(fit, REML = TRUE, optimizer = "bobyqa", maxfun = 10000)
+stopifnot(grepl("lme4", methods_text, fixed = TRUE))
+stopifnot(grepl("Reproducible R code", methods_text, fixed = TRUE))
+
+publication_bundle <- mlm_publication_bundle(fit, REML = TRUE, optimizer = "bobyqa", maxfun = 10000)
+stopifnot(all(c("methods_text", "reproducibility_check", "software_statement", "formula", "apa_tables", "equations", "reproducible_code") %in% names(publication_bundle)))
+stopifnot(is.data.frame(publication_bundle$reproducibility_check))
+stopifnot(grepl("mathscore", publication_bundle$formula, fixed = TRUE))
 
 repro_code <- paste(generate_repro_code(fit, REML = TRUE, optimizer = "bobyqa", maxfun = 10000), collapse = "\n")
 stopifnot(grepl("Table 1: APA Fixed Effects", repro_code, fixed = TRUE))
@@ -176,6 +207,27 @@ binomial_fit <- mlm_fit(binomial_spec, optimizer = "bobyqa", maxfun = 10000)
 stopifnot(inherits(binomial_fit$fit, "glmerMod"))
 binomial_diagnostics <- get_mlmr("mlm_diagnostics")(binomial_fit$fit)
 stopifnot("Overdispersion ratio" %in% binomial_diagnostics$check)
+stopifnot(nrow(get_mlmr("icc_table")(binomial_fit$fit)) == 0)
+stopifnot(grepl("generalized mixed model", paste(model_guidance(binomial_fit), collapse = " "), fixed = TRUE))
+
+bad_link_spec <- binomial_spec
+bad_link_spec$link <- "identity"
+bad_link_readiness <- model_readiness_table(dat, bad_link_spec)
+stopifnot(model_readiness_has_stops(bad_link_readiness))
+stopifnot("Distribution/link pair" %in% bad_link_readiness$Check)
+
+bad_slope_dat <- dat
+bad_slope_dat$school_constant <- ave(rep(1, nrow(bad_slope_dat)), bad_slope_dat$schoolid)
+bad_slope_spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(school_constant = list(center = "none")),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE, slopes = "school_constant", correlation = TRUE)),
+  data = bad_slope_dat
+)
+bad_slope_readiness <- model_readiness_table(bad_slope_dat, bad_slope_spec)
+stopifnot(model_readiness_has_stops(bad_slope_readiness))
+stopifnot(any(grepl("Random slope variation", bad_slope_readiness$Check, fixed = TRUE)))
 
 scope <- mlm_supported_models()
 stopifnot(nrow(scope) >= 10)
@@ -184,6 +236,34 @@ stopifnot("Nested structures" %in% scope$Area)
 stopifnot("Multiple membership" %in% scope$Area)
 stopifnot(any(scope$Status == "Experimental"))
 stopifnot(any(scope$Status == "Planned"))
+
+parity <- mlm_hlm8_parity()
+stopifnot(nrow(parity) >= 15)
+stopifnot(all(c("HLM8_workflow", "mlmr_status", "Evidence", "Next_step") %in% names(parity)))
+stopifnot("Unconditional/null model" %in% parity$HLM8_workflow)
+stopifnot("Reproducible syntax export" %in% parity$HLM8_workflow)
+stopifnot(any(parity$mlmr_status == "Planned"))
+
+benchmarks <- mlm_validation_benchmarks(run = FALSE)
+stopifnot(nrow(benchmarks) >= 5)
+stopifnot(all(benchmarks$`Readiness Stops` == 0))
+stopifnot(all(benchmarks$`Formula Match`))
+stopifnot(all(benchmarks$`Validation Status` == "Formula validated"))
+stopifnot(all(c("null", "random_intercept", "random_slope", "cross_level", "three_level") %in% benchmarks$Benchmark))
+stopifnot(any(grepl("(1 | schoolid)", benchmarks$Formula, fixed = TRUE)))
+
+fit_benchmarks <- mlm_validation_benchmarks(run = TRUE)
+stopifnot(all(fit_benchmarks$`Fit Tested` == "Yes"))
+stopifnot(all(is.finite(fit_benchmarks$AIC)))
+stopifnot(all(fit_benchmarks$`AIC Difference` <= 0.5))
+stopifnot(all(fit_benchmarks$`Validation Status` == "Validated"))
+
+validation_report <- mlm_validation_report()
+stopifnot(all(c("generated_at", "seed", "tolerance", "benchmarks", "fixed_effects", "variance_components", "icc", "diagnostics") %in% names(validation_report)))
+stopifnot(nrow(validation_report$benchmarks) == nrow(fit_benchmarks))
+stopifnot(all(validation_report$benchmarks$`Validation Status` == "Validated"))
+stopifnot(all(c("Benchmark", "Predictor", "b", "SE", "p", "95% CI") %in% names(validation_report$fixed_effects)))
+stopifnot(all(c("Benchmark", "check", "value") %in% names(validation_report$diagnostics)))
 
 if (file.exists("R/mlm_core.R") && file.exists("inst/app/R/mlm_core.R")) {
   root_core <- readLines("R/mlm_core.R", warn = FALSE)

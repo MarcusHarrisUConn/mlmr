@@ -41,7 +41,7 @@ mlmr::run_mlmr()
 - [x] Confirm public documentation describes supported, experimental, planned,
       and out-of-scope model features.
 - [x] Create final maintainer handoff notes in `CRAN_SUBMISSION.md`.
-- [ ] Run `source("dev/check-publication-readiness.R")`.
+- [x] Run `source("dev/check-publication-readiness.R")`.
 - [ ] Submit to CRAN.
 - [ ] Respond to CRAN maintainer confirmation email.
 
@@ -54,6 +54,18 @@ source("dev/check-publication-readiness.R")
 devtools::check(args = c("--no-manual", "--as-cran"))
 devtools::build()
 devtools::build_manual()
+```
+
+If `devtools` is not installed, use base R commands with Pandoc on `PATH`:
+
+```sh
+PATH=/Applications/quarto/bin/tools/aarch64:$PATH \
+RSTUDIO_PANDOC=/Applications/quarto/bin/tools/aarch64 \
+R CMD build .
+
+PATH=/Applications/quarto/bin/tools/aarch64:$PATH \
+RSTUDIO_PANDOC=/Applications/quarto/bin/tools/aarch64 \
+R CMD check --as-cran mlmr_0.1.0.tar.gz
 ```
 
 Then confirm:

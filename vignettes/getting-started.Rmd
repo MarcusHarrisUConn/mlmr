@@ -10,8 +10,7 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  eval = FALSE
+  comment = "#>"
 )
 ```
 
@@ -31,7 +30,7 @@ The app is built around four practical goals:
 
 ## Install the Public Beta
 
-```{r install}
+```{r install, eval = FALSE}
 install.packages("remotes")
 remotes::install_github("MarcusHarrisUConn/mlmr")
 ```
@@ -44,7 +43,7 @@ library(mlmr)
 
 ## Launch the App
 
-```{r launch}
+```{r launch, eval = FALSE}
 mlmr::run_mlmr()
 ```
 
@@ -82,7 +81,7 @@ mlmr::mlm_supported_models()
 
 For a longer discussion, see:
 
-```{r supported-vignette}
+```{r supported-vignette, eval = FALSE}
 vignette("supported-models", package = "mlmr")
 ```
 
@@ -130,7 +129,7 @@ scripted R workflow without losing any modeling decisions.
 
 Like other R packages, `mlmr` has function help pages that can be viewed with:
 
-```{r help}
+```{r help, eval = FALSE}
 ?run_mlmr
 help(package = "mlmr")
 ```

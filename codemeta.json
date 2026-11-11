@@ -1,0 +1,47 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "mlmr",
+  "description": "Guided Shiny interface and R helpers for specifying, fitting, explaining, and reporting mixed-effects and multilevel models with lme4.",
+  "codeRepository": "https://github.com/MarcusHarrisUConn/mlmr",
+  "issueTracker": "https://github.com/MarcusHarrisUConn/mlmr/issues",
+  "license": "https://spdx.org/licenses/MIT",
+  "version": "0.1.0",
+  "programmingLanguage": "R",
+  "runtimePlatform": "R",
+  "applicationCategory": "Statistics",
+  "keywords": [
+    "R",
+    "Shiny",
+    "multilevel modeling",
+    "mixed-effects models",
+    "HLM",
+    "reproducible research"
+  ],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Marcus",
+      "familyName": "Harris",
+      "email": "marcus.harris.uconn@gmail.com",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "University of Connecticut"
+      }
+    }
+  ],
+  "maintainer": {
+    "@type": "Person",
+    "givenName": "Marcus",
+    "familyName": "Harris",
+    "email": "marcus.harris.uconn@gmail.com"
+  },
+  "softwareRequirements": [
+    "R",
+    "shiny",
+    "bslib",
+    "lme4",
+    "ggplot2"
+  ],
+  "url": "https://marcusharrisphd.com/mlmr/"
+}

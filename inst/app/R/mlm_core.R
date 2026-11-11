@@ -244,6 +244,55 @@ model_variables <- function(spec) {
   unique(c(spec$outcome, names(spec$fixed), unlist(spec$grouping, use.names = FALSE), unlist(spec$interactions, use.names = FALSE)))
 }
 
+is_gaussian_spec <- function(spec) {
+  identical(spec$distribution, "gaussian")
+}
+
+is_gaussian_fit <- function(fit) {
+  inherits(fit, "lmerMod") && !inherits(fit, "glmerMod")
+}
+
+family_link_supported <- function(distribution, link) {
+  supported <- switch(
+    distribution,
+    gaussian = "identity",
+    binomial = c("logit", "probit"),
+    poisson = "log",
+    `negative binomial` = "log",
+    Gamma = c("log", "inverse"),
+    character()
+  )
+  link %in% supported
+}
+
+family_link_detail <- function(distribution) {
+  switch(
+    distribution,
+    gaussian = "Gaussian models use the identity link in the standard workflow.",
+    binomial = "Binomial models currently support logit and probit links.",
+    poisson = "Poisson models currently support the log link.",
+    `negative binomial` = "Negative-binomial models currently use the log link.",
+    Gamma = "Gamma models currently support log and inverse links.",
+    "Review the selected distribution and link."
+  )
+}
+
+fixed_effects_note <- function(fit) {
+  if (is_gaussian_fit(fit)) {
+    "For Gaussian mixed models fit with lme4, p values use large-sample normal approximations; use them as screening evidence unless a denominator-df method is added."
+  } else {
+    "For generalized mixed models, p values and intervals are Wald large-sample approximations on the link scale."
+  }
+}
+
+icc_note <- function(fit) {
+  if (is_gaussian_fit(fit)) {
+    "ICCs represent the proportion of model-implied variance attributable to each grouping level for this Gaussian mixed model."
+  } else {
+    "Classical Gaussian ICCs are not computed for generalized mixed models; use model-family-specific latent- or observation-scale ICC methods before reporting ICCs."
+  }
+}
+
 model_missingness <- function(data, spec) {
   vars <- model_variables(spec)
   vars <- vars[vars %in% names(data)]
@@ -319,7 +368,8 @@ model_summary_cards <- function(result, optimizer = NULL) {
   )
 }
 
-model_guidance <- function(result, REML = TRUE) {
+model_guidance <- function(result, REML = NULL) {
+  REML <- result_settings(result, REML = REML)$REML
   spec <- result$spec
   fit <- result$fit
   diag <- mlm_diagnostics(fit)
@@ -334,6 +384,9 @@ model_guidance <- function(result, REML = TRUE) {
   }
   if (identical(spec$distribution, "gaussian") && isTRUE(REML)) {
     warnings <- c(warnings, "REML is appropriate for estimating variance components, but use ML when comparing nested fixed-effect models.")
+  }
+  if (!identical(spec$distribution, "gaussian")) {
+    warnings <- c(warnings, "This is a generalized mixed model workflow. Review link-scale interpretation, sparse cells or overdispersion, and family-specific reporting before publication.")
   }
   for (group in groups) {
     if (group %in% names(result$data) && length(unique(result$data[[group]])) < 10) {
@@ -360,30 +413,33 @@ model_template_explanation <- function(template) {
 }
 
 tau_label_table <- function(result) {
-  spec <- result$spec
-  fixed_terms <- model_fixed_terms(spec)
-  rows <- list()
-  for (group_name in names(spec$random)) {
-    rand <- spec$random[[group_name]]
-    random_slope_terms <- vapply(rand$slopes %||% character(), effective_term, character(1), fixed = spec$fixed)
-    coefficient_labels <- c("Intercept", fixed_terms)
-    random_flags <- c(isTRUE(rand$intercept), fixed_terms %in% random_slope_terms)
-    block <- data.frame(
-      Group = group_name,
-      `Matrix Index` = paste0("u_", seq_along(coefficient_labels) - 1),
-      Coefficient = coefficient_labels,
-      Estimated = ifelse(random_flags, "Yes", "No; fixed only"),
+  rows <- lapply(tau_blocks(result), function(block) {
+    data.frame(
+      Group = block$group,
+      `Matrix Index` = equation_plain(block$symbols),
+      Coefficient = block$labels,
+      Estimated = "Yes",
       stringsAsFactors = FALSE,
       check.names = FALSE
     )
-    rows[[group_name]] <- block
-  }
+  })
   if (!length(rows)) {
     return(data.frame(Group = character(), `Matrix Index` = character(), Coefficient = character(), Estimated = character(), check.names = FALSE))
   }
   out <- do.call(rbind, rows)
   row.names(out) <- NULL
   out
+}
+
+equation_key_table <- function(result) {
+  key <- equation_structure(result)$key
+  data.frame(
+    Symbol = key$Symbol,
+    Coefficient = key$Coefficient,
+    Estimate = sprintf("%.3f", key$Estimate),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
 }
 
 interpretation_points <- function(result) {
@@ -395,10 +451,10 @@ interpretation_points <- function(result) {
   sig <- fixed[!fixed$Predictor %in% "(Intercept)" & fixed$p != "" & fixed$p != "NA" & (fixed$p == "< .001" | suppressWarnings(as.numeric(fixed$p)) < .05), , drop = FALSE]
   c(
     sprintf("The outcome is %s, modeled with a %s multilevel specification.", spec$outcome, spec$distribution),
-    sprintf("Fixed effects represent average associations after the selected centering and dummy-coding choices. %s", if (nrow(sig)) paste("Statistically detectable fixed effects include", paste(sig$Predictor, collapse = ", "), ".") else "No non-intercept fixed effects are below alpha = .05 in the current fit."),
+    sprintf("Fixed effects represent average associations after the selected centering and dummy-coding choices. %s %s", if (nrow(sig)) paste("Statistically detectable fixed effects include", paste(sig$Predictor, collapse = ", "), ".") else "No non-intercept fixed effects are below alpha = .05 in the current fit.", fixed_effects_note(result$fit)),
     sprintf("Random effects are estimated for %s. Random slopes are included for %s.", paste(names(spec$random), collapse = ", "), if (length(random_slopes)) paste(random_slopes, collapse = ", ") else "no predictors"),
     sprintf("Interactions in the current model: %s.", if (length(interactions)) paste(interactions, collapse = ", ") else "none"),
-    sprintf("ICCs summarize clustering after the fitted variance structure: %s.", if (nrow(icc)) paste(sprintf("%s = %.3f", icc$group, icc$icc), collapse = "; ") else "not available for this model")
+    sprintf("%s %s", icc_note(result$fit), if (nrow(icc)) paste("Current ICC estimates:", paste(sprintf("%s = %.3f", icc$group, icc$icc), collapse = "; ")) else "")
   )
 }
 
@@ -437,14 +493,31 @@ model_readiness_table <- function(data, spec) {
     add("Stop", "Outcome type", "Gaussian models require a numeric outcome.")
   } else if (identical(spec$distribution, "binomial") && length(unique(stats::na.omit(data[[spec$outcome]]))) != 2) {
     add("Stop", "Outcome type", "Binomial models require a two-category outcome.")
+  } else if (identical(spec$distribution, "poisson") && (!is.numeric(data[[spec$outcome]]) || any(data[[spec$outcome]] < 0, na.rm = TRUE) || any(abs(data[[spec$outcome]] - round(data[[spec$outcome]])) > .Machine$double.eps^0.5, na.rm = TRUE))) {
+    add("Stop", "Outcome type", "Poisson models require a nonnegative integer count outcome.")
+  } else if (identical(spec$distribution, "negative binomial") && (!is.numeric(data[[spec$outcome]]) || any(data[[spec$outcome]] < 0, na.rm = TRUE) || any(abs(data[[spec$outcome]] - round(data[[spec$outcome]])) > .Machine$double.eps^0.5, na.rm = TRUE))) {
+    add("Stop", "Outcome type", "Negative-binomial models require a nonnegative integer count outcome.")
+  } else if (identical(spec$distribution, "Gamma") && (!is.numeric(data[[spec$outcome]]) || any(data[[spec$outcome]] <= 0, na.rm = TRUE))) {
+    add("Stop", "Outcome type", "Gamma models require a strictly positive numeric outcome.")
   } else {
     add("OK", "Outcome type", sprintf("%s is compatible with the selected %s model.", spec$outcome, spec$distribution))
+  }
+  if (!family_link_supported(spec$distribution, spec$link)) {
+    add("Stop", "Distribution/link pair", family_link_detail(spec$distribution))
+  } else {
+    add("OK", "Distribution/link pair", family_link_detail(spec$distribution))
+  }
+  problems <- spec_problems(spec, data)
+  for (i in seq_len(nrow(problems))) {
+    add("Stop", problems$Check[[i]], problems$Detail[[i]])
   }
   groups <- unlist(spec$grouping, use.names = FALSE)
   groups <- groups[nzchar(groups)]
   if (!length(groups)) {
     add("Stop", "Grouping factors", "Select at least one grouping factor.")
   } else {
+    nesting <- nesting_check(data, groups, spec$structure %||% "nested")
+    if (!is.null(nesting)) add(nesting$status, "Nesting of grouping IDs", nesting$detail)
     for (group in groups) {
       if (!group %in% names(data)) next
       n_group <- length(unique(stats::na.omit(data[[group]])))
@@ -465,6 +538,30 @@ model_readiness_table <- function(data, spec) {
       add("Stop", paste("Random slope:", slope), "Random slopes should be numeric predictors.")
     } else {
       add("OK", paste("Random slope:", slope), "Numeric predictor selected for random-slope estimation.")
+      slope_groups <- intersect(groups, names(data))
+      for (group in slope_groups) {
+        counts <- stats::aggregate(data[[slope]], list(group = data[[group]]), function(x) length(unique(x[!is.na(x)])))$x
+        invariant <- sum(counts <= 1, na.rm = TRUE)
+        if (invariant == length(counts)) {
+          add("Stop", paste("Random slope variation:", slope), sprintf("%s does not vary within any %s unit; a random slope is not identified for this grouping factor.", slope, group))
+        } else if (invariant > 0) {
+          add("Warn", paste("Random slope variation:", slope), sprintf("%s is constant within %s of %s %s units; inspect whether the random slope is supported by the design.", slope, invariant, length(counts), group))
+        } else {
+          add("OK", paste("Random slope variation:", slope), sprintf("%s varies within all observed %s units.", slope, group))
+        }
+      }
+    }
+  }
+  if (identical(spec$distribution, "binomial") && spec$outcome %in% names(data)) {
+    outcome_values <- stats::na.omit(data[[spec$outcome]])
+    for (group in groups[groups %in% names(data)]) {
+      group_outcomes <- stats::aggregate(outcome_values, list(group = data[[group]][!is.na(data[[spec$outcome]])]), function(x) length(unique(x)))
+      one_class <- sum(group_outcomes$x <= 1, na.rm = TRUE)
+      if (one_class > 0) {
+        add("Warn", paste("Binomial separation:", group), sprintf("%s of %s %s units contain only one outcome category; check separation and sparse cells before reporting.", one_class, nrow(group_outcomes), group))
+      } else {
+        add("OK", paste("Binomial separation:", group), sprintf("Both outcome categories appear within all observed %s units.", group))
+      }
     }
   }
   model_vars <- vars[vars %in% names(data)]
@@ -484,7 +581,49 @@ model_readiness_table <- function(data, spec) {
 }
 
 model_readiness_has_stops <- function(readiness) {
-  any(identical(readiness$Status, "Stop") | readiness$Status == "Stop")
+  any(readiness$Status == "Stop")
+}
+
+# lme4 treats `(1 | school) + (1 | district)` as nested only when lower-level
+# IDs are unique across higher-level units. Reused IDs (school "1" in every
+# district) silently turn a nested design into a crossed one.
+nesting_check <- function(data, groups, structure = "nested") {
+  groups <- intersect(groups, names(data))
+  if (length(groups) < 2) return(NULL)
+  spanning_share <- function(inner, outer) {
+    keep <- !is.na(data[[inner]]) & !is.na(data[[outer]])
+    if (!any(keep)) return(0)
+    memberships <- tapply(as.character(data[[outer]][keep]), as.character(data[[inner]][keep]), function(x) length(unique(x)))
+    mean(memberships > 1)
+  }
+  pairs <- utils::combn(groups, 2, simplify = FALSE)
+  not_nested <- character()
+  hierarchy <- character()
+  for (pair in pairs) {
+    share_a <- spanning_share(pair[[1]], pair[[2]])
+    share_b <- spanning_share(pair[[2]], pair[[1]])
+    if (share_a > 0 && share_b > 0) {
+      not_nested <- c(not_nested, sprintf(
+        "%s and %s (%.0f%% of %s units span several %s units; %.0f%% of %s units span several %s units)",
+        pair[[1]], pair[[2]], 100 * share_a, pair[[1]], pair[[2]], 100 * share_b, pair[[2]], pair[[1]]
+      ))
+    } else {
+      hierarchy <- c(hierarchy, if (share_a == 0) sprintf("%s within %s", pair[[1]], pair[[2]]) else sprintf("%s within %s", pair[[2]], pair[[1]]))
+    }
+  }
+  if (identical(structure, "nested")) {
+    if (length(not_nested)) {
+      return(list(status = "Warn", detail = sprintf(
+        "These grouping factors are not nested as coded: %s. lme4 will treat them as crossed. If the design is nested and lower-level IDs restart within each higher-level unit, create IDs that are unique across higher-level units (for example with interaction()); otherwise select the crossed structure.",
+        paste(not_nested, collapse = "; ")
+      )))
+    }
+    return(list(status = "OK", detail = sprintf("Grouping IDs form a strict hierarchy (%s).", paste(hierarchy, collapse = "; "))))
+  }
+  if (identical(structure, "crossed") && !length(not_nested)) {
+    return(list(status = "Warn", detail = sprintf("The grouping factors form a strict hierarchy in these data (%s); the design may be nested rather than crossed.", paste(hierarchy, collapse = "; "))))
+  }
+  NULL
 }
 
 missing_pattern_table <- function(data, spec, max_patterns = 12) {
@@ -510,7 +649,7 @@ missing_pattern_table <- function(data, spec, max_patterns = 12) {
   do.call(rbind, out)
 }
 
-imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed = 20260424) {
+imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed = 20260424, data_name = "dat") {
   vars <- model_variables(spec)
   vars <- vars[nzchar(vars)]
   formula_text <- if (is.null(formula)) "<fit formula after centering>" else paste(deparse(formula, width.cutoff = 500), collapse = " ")
@@ -530,7 +669,7 @@ imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed
     "library(broom.mixed)",
     "",
     sprintf("model_vars <- c(%s)", paste(sprintf("\"%s\"", vars), collapse = ", ")),
-    "dat_model <- dat[, model_vars, drop = FALSE]",
+    sprintf("dat_model <- %s[, model_vars, drop = FALSE]", data_name),
     "",
     "# Inspect the missing-data pattern before imputing.",
     "md.pattern(dat_model)",
@@ -550,12 +689,16 @@ imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed
 mlm_spec <- function(outcome, distribution = "gaussian", link = "identity", fixed = list(),
                      grouping = list(), nesting = NULL, structure = "nested", random = list(),
                      interactions = list(), predictor_levels = list(), data = NULL) {
-  if (!is.character(outcome) || length(outcome) != 1 || !nzchar(outcome)) {
+  if (!is.character(outcome) || length(outcome) != 1 || is.na(outcome) || !nzchar(outcome)) {
     stop("`outcome` must be a single variable name.", call. = FALSE)
   }
   supported_distributions <- c("gaussian", "binomial", "poisson", "negative binomial", "Gamma")
   if (!is.character(distribution) || length(distribution) != 1 || !distribution %in% supported_distributions) {
-    stop("Unsupported distribution: ", distribution, call. = FALSE)
+    stop(
+      "Unsupported distribution: ", paste(format(distribution), collapse = ", "),
+      ". Choose one of: ", paste(supported_distributions, collapse = ", "), ".",
+      call. = FALSE
+    )
   }
   if (!is.character(link) || length(link) != 1 || !nzchar(link)) {
     stop("`link` must be a single link-function name.", call. = FALSE)
@@ -563,6 +706,15 @@ mlm_spec <- function(outcome, distribution = "gaussian", link = "identity", fixe
   if (!is.list(fixed) || !is.list(grouping) || !is.list(random) ||
       !is.list(interactions) || !is.list(predictor_levels)) {
     stop("`fixed`, `grouping`, `random`, `interactions`, and `predictor_levels` must be lists.", call. = FALSE)
+  }
+  if (length(fixed) && (is.null(names(fixed)) || any(!nzchar(names(fixed))))) {
+    stop("`fixed` must be a named list with one entry per predictor, such as list(ses = list(center = \"CWC\")).", call. = FALSE)
+  }
+  if (length(random) && (is.null(names(random)) || any(!nzchar(names(random))))) {
+    stop("`random` must be a named list with one entry per grouping factor.", call. = FALSE)
+  }
+  if (!is.null(data) && !is.data.frame(data)) {
+    stop("`data` must be a data frame.", call. = FALSE)
   }
   if (!is.null(data)) {
     selected <- unique(c(outcome, names(fixed), unlist(grouping, use.names = FALSE), unlist(interactions, use.names = FALSE)))
@@ -589,24 +741,139 @@ mlm_spec <- function(outcome, distribution = "gaussian", link = "identity", fixe
   )
 }
 
-center_predictors <- function(data, fixed, grouping) {
+print.mlm_spec <- function(x, ...) {
+  centering <- vapply(x$fixed, function(term) term$center %||% "none", character(1))
+  fixed_text <- if (length(centering)) {
+    paste(ifelse(centering == "none", names(centering), sprintf("%s (%s)", names(centering), centering)), collapse = ", ")
+  } else {
+    "intercept only"
+  }
+  formula_text <- tryCatch(
+    paste(deparse(build_formula(x), width.cutoff = 500), collapse = " "),
+    error = function(e) "<not available>"
+  )
+  cat("<mlm_spec>\n")
+  cat("  Outcome:      ", x$outcome, "\n", sep = "")
+  cat("  Distribution: ", x$distribution, " (", x$link, " link)\n", sep = "")
+  cat("  Fixed:        ", fixed_text, "\n", sep = "")
+  if (length(x$interactions)) {
+    cat("  Interactions: ", paste(vapply(x$interactions, paste, character(1), collapse = ":"), collapse = ", "), "\n", sep = "")
+  }
+  cat("  Grouping:     ", paste(unlist(x$grouping, use.names = FALSE), collapse = ", "), " (", x$structure %||% "nested", ")\n", sep = "")
+  cat("  Formula:      ", formula_text, "\n", sep = "")
+  if (is.data.frame(x$data)) {
+    cat("  Data:         ", nrow(x$data), " rows, ", ncol(x$data), " columns\n", sep = "")
+  } else {
+    cat("  Data:         none attached\n")
+  }
+  invisible(x)
+}
+
+centering_methods <- function() c("none", "GMC", "CWC")
+
+# Grouping variable used for cluster-mean centering of one predictor. A
+# predictor can override the default (the first grouping factor) with
+# `list(center = "CWC", group = "districtid")`.
+centering_group <- function(fixed, term, grouping) {
+  group_values <- unlist(grouping, use.names = FALSE)
+  fixed[[term]]$group %||% first_or(group_values)
+}
+
+# Problems that make a specification impossible to fit as requested. Returned
+# as a data frame so the same checks feed mlm_fit() errors and the app's
+# readiness table.
+spec_problems <- function(spec, data = spec$data) {
+  check <- character()
+  detail <- character()
+  add <- function(item, text) {
+    check <<- c(check, item)
+    detail <<- c(detail, text)
+  }
+  group_values <- unlist(spec$grouping, use.names = FALSE)
+  for (term in names(spec$fixed)) {
+    method <- spec$fixed[[term]]$center %||% "none"
+    if (!is.character(method) || length(method) != 1 || !method %in% centering_methods()) {
+      add(paste("Centering:", term), sprintf("Centering for %s must be one of \"none\", \"GMC\", or \"CWC\".", term))
+      next
+    }
+    if (identical(method, "none")) next
+    if (is.data.frame(data) && term %in% names(data) && !is.numeric(data[[term]])) {
+      add(paste("Centering:", term), sprintf("%s is not numeric, so it cannot be %s centered. Set its centering to \"none\".", term, method))
+    }
+    if (identical(method, "CWC")) {
+      group <- centering_group(spec$fixed, term, spec$grouping)
+      if (is.null(group)) {
+        add(paste("Centering:", term), sprintf("Cluster-mean centering of %s requires a grouping factor.", term))
+      } else if (is.data.frame(data) && !group %in% names(data)) {
+        add(paste("Centering:", term), sprintf("The centering group %s for %s is missing from the data.", group, term))
+      }
+    }
+  }
+  unknown_random <- setdiff(names(spec$random), c(names(spec$grouping), group_values))
+  if (length(unknown_random)) {
+    add("Random effects", sprintf("Random effects were requested for %s, which is not listed in `grouping`.", paste(unknown_random, collapse = ", ")))
+  }
+  for (group_name in names(spec$random)) {
+    unknown_slopes <- setdiff(spec$random[[group_name]]$slopes %||% character(), names(spec$fixed))
+    if (length(unknown_slopes)) {
+      add(
+        paste("Random slope:", paste(unknown_slopes, collapse = ", ")),
+        sprintf("Random slopes for %s must also be fixed predictors; add them to `fixed` or remove the random slope.", paste(unknown_slopes, collapse = ", "))
+      )
+    }
+  }
+  bad_interactions <- Filter(function(x) !is.character(x) || length(x) < 2, spec$interactions)
+  if (length(bad_interactions)) {
+    add("Interactions", "Each interaction must name at least two variables, such as c(\"ses\", \"sector\").")
+  }
+  if (!length(random_formula_terms(spec))) {
+    add("Random effects", "No random effects are specified. Add a random intercept or random slope for at least one grouping factor.")
+  }
+  data.frame(Check = check, Detail = detail, stringsAsFactors = FALSE, check.names = FALSE)
+}
+
+# Rows that lme4 will keep: complete on every variable the model uses.
+analysis_rows <- function(data, vars) {
+  vars <- intersect(vars, names(data))
+  if (!length(vars)) return(rep(TRUE, nrow(data)))
+  stats::complete.cases(data[, vars, drop = FALSE])
+}
+
+data_ref <- function(name, data_name = "dat") {
+  if (identical(make.names(name), name)) {
+    paste0(data_name, "$", name)
+  } else {
+    sprintf("%s[[\"%s\"]]", data_name, gsub("\"", "\\\"", name, fixed = TRUE))
+  }
+}
+
+# Centers predictors using means from the analysis sample (`rows`), so a
+# grand-mean-centered predictor has mean zero and a cluster-mean-centered
+# predictor has cluster means of zero among the rows the model actually uses.
+center_predictors <- function(data, fixed, grouping, rows = NULL) {
   centered <- data
   code_lines <- character()
-  group_values <- unlist(grouping, use.names = FALSE)
-  primary_group <- if (length(group_values)) group_values[[1]] else NULL
+  if (is.null(rows)) rows <- rep(TRUE, nrow(data))
   for (term in names(fixed)) {
     method <- fixed[[term]]$center %||% "none"
     if (!term %in% names(centered) || !is.numeric(centered[[term]]) || identical(method, "none")) {
       next
     }
     new_name <- paste0(term, "_", method)
+    x <- centered[[term]]
     if (identical(method, "GMC")) {
-      centered[[new_name]] <- centered[[term]] - mean(centered[[term]], na.rm = TRUE)
-      code_lines <- c(code_lines, sprintf("%s <- %s - mean(%s, na.rm = TRUE)", new_name, term, term))
-    } else if (identical(method, "CWC") && !is.null(primary_group) && primary_group %in% names(centered)) {
-      group_mean <- ave(centered[[term]], centered[[primary_group]], FUN = function(x) mean(x, na.rm = TRUE))
-      centered[[new_name]] <- centered[[term]] - group_mean
-      code_lines <- c(code_lines, sprintf("%s <- %s - ave(%s, %s, FUN = function(x) mean(x, na.rm = TRUE))", new_name, term, term, primary_group))
+      centered[[new_name]] <- x - mean(x[rows], na.rm = TRUE)
+      code_lines <- c(code_lines, sprintf("%s <- %s - mean(%s, na.rm = TRUE)", data_ref(new_name), data_ref(term), data_ref(term)))
+    } else if (identical(method, "CWC")) {
+      group <- centering_group(fixed, term, grouping)
+      if (is.null(group) || !group %in% names(centered)) next
+      group_id <- as.character(centered[[group]])
+      group_means <- tapply(x[rows], group_id[rows], function(v) mean(v, na.rm = TRUE))
+      centered[[new_name]] <- x - as.numeric(group_means[group_id])
+      code_lines <- c(code_lines, sprintf(
+        "%s <- %s - ave(%s, %s, FUN = function(x) mean(x, na.rm = TRUE))",
+        data_ref(new_name), data_ref(term), data_ref(term), data_ref(group)
+      ))
     }
   }
   list(data = centered, code = code_lines)
@@ -632,41 +899,82 @@ model_fixed_terms <- function(spec) {
   unique(c(effective_fixed_terms(spec$fixed), effective_interaction_terms(spec$fixed, spec$interactions)))
 }
 
-build_formula <- function(spec) {
-  rhs_fixed <- model_fixed_terms(spec)
-  if (!length(rhs_fixed)) rhs_fixed <- "1"
+# Quote variable names that are not syntactic R names so they survive in a formula.
+formula_name <- function(x) {
+  ifelse(make.names(x) == x, x, paste0("`", gsub("`", "\\`", x, fixed = TRUE), "`"))
+}
+
+formula_term <- function(x) {
+  vapply(strsplit(x, ":", fixed = TRUE), function(parts) paste(formula_name(parts), collapse = ":"), character(1))
+}
+
+random_formula_terms <- function(spec) {
   random_terms <- character()
   for (group_name in names(spec$random)) {
-    group_var <- spec$grouping[[group_name]] %||% group_name
+    group_var <- formula_name(spec$grouping[[group_name]] %||% group_name)
     rand <- spec$random[[group_name]]
     slopes <- rand$slopes %||% character()
     slopes <- slopes[slopes %in% names(spec$fixed)]
-    slope_terms <- if (length(slopes)) effective_fixed_terms(spec$fixed[slopes]) else character()
+    slope_terms <- if (length(slopes)) formula_name(unname(effective_fixed_terms(spec$fixed[slopes]))) else character()
     include_intercept <- isTRUE(rand$intercept)
+    if (!include_intercept && !length(slope_terms)) next
     if (isTRUE(rand$correlation)) {
       pieces <- c(if (include_intercept) "1" else "0", slope_terms)
-      if (length(pieces)) random_terms <- c(random_terms, sprintf("(%s | %s)", paste(pieces, collapse = " + "), group_var))
+      random_terms <- c(random_terms, sprintf("(%s | %s)", paste(pieces, collapse = " + "), group_var))
     } else {
       if (include_intercept) random_terms <- c(random_terms, sprintf("(1 | %s)", group_var))
       random_terms <- c(random_terms, sprintf("(0 + %s | %s)", slope_terms, group_var))
     }
   }
-  stats::as.formula(paste(spec$outcome, "~", paste(c(rhs_fixed, random_terms), collapse = " + ")))
+  random_terms
+}
+
+build_formula <- function(spec) {
+  interaction_terms <- vapply(spec$interactions, function(x) {
+    paste(formula_name(vapply(x, effective_term, character(1), fixed = spec$fixed)), collapse = ":")
+  }, character(1))
+  rhs_fixed <- unique(c(formula_name(unname(effective_fixed_terms(spec$fixed))), interaction_terms))
+  if (!length(rhs_fixed)) rhs_fixed <- "1"
+  stats::as.formula(
+    paste(formula_name(spec$outcome), "~", paste(c(rhs_fixed, random_formula_terms(spec)), collapse = " + ")),
+    env = globalenv()
+  )
 }
 
 mlm_formula <- function(spec) {
+  if (!inherits(spec, "mlm_spec")) {
+    stop("`spec` must be an \"mlm_spec\" object created with mlm_spec().", call. = FALSE)
+  }
   build_formula(spec)
 }
 
 mlm_fit <- function(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 20000) {
-  if (!requireNamespace("lme4", quietly = TRUE)) {
-    stop("Package 'lme4' is required. Install it with install.packages('lme4').", call. = FALSE)
+  if (!inherits(spec, "mlm_spec")) {
+    stop("`spec` must be an \"mlm_spec\" object created with mlm_spec().", call. = FALSE)
   }
-  centered <- center_predictors(spec$data, spec$fixed, spec$grouping)
+  if (!is.data.frame(spec$data)) {
+    stop("The specification has no data. Supply `data` to mlm_spec() before fitting.", call. = FALSE)
+  }
+  if (!family_link_supported(spec$distribution, spec$link)) {
+    stop("Unsupported distribution/link pair. ", family_link_detail(spec$distribution), call. = FALSE)
+  }
+  missing_vars <- setdiff(model_variables(spec), names(spec$data))
+  if (length(missing_vars)) {
+    stop("The following selected variables are missing from `data`: ", paste(missing_vars, collapse = ", "), call. = FALSE)
+  }
+  problems <- spec_problems(spec)
+  if (nrow(problems)) {
+    stop("The model specification cannot be fit:\n", paste0("  - ", problems$Detail, collapse = "\n"), call. = FALSE)
+  }
+  rows <- analysis_rows(spec$data, model_variables(spec))
+  if (!any(rows)) {
+    stop("No rows are complete on the selected model variables.", call. = FALSE)
+  }
+  centered <- center_predictors(spec$data, spec$fixed, spec$grouping, rows = rows)
   spec$data <- centered$data
   formula <- build_formula(spec)
-  control <- lme4::lmerControl(optimizer = optimizer, optCtrl = list(maxfun = maxfun))
   if (identical(spec$distribution, "gaussian")) {
+    control <- lme4::lmerControl(optimizer = optimizer, optCtrl = list(maxfun = maxfun))
     fit <- suppressMessages(lme4::lmer(formula, data = spec$data, REML = REML, control = control))
   } else if (identical(spec$distribution, "negative binomial")) {
     glmm_control <- lme4::glmerControl(optimizer = optimizer, optCtrl = list(maxfun = maxfun))
@@ -682,7 +990,54 @@ mlm_fit <- function(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 20000) {
     )
     fit <- suppressMessages(lme4::glmer(formula, data = spec$data, family = fam, control = glmm_control))
   }
-  list(fit = fit, formula = formula, data = spec$data, centering_code = centered$code, spec = spec)
+  structure(
+    list(
+      fit = fit,
+      formula = formula,
+      data = spec$data,
+      centering_code = centered$code,
+      spec = spec,
+      settings = list(
+        REML = identical(spec$distribution, "gaussian") && isTRUE(REML),
+        optimizer = optimizer,
+        maxfun = maxfun
+      )
+    ),
+    class = "mlm_result"
+  )
+}
+
+print.mlm_result <- function(x, ...) {
+  fit <- x$fit
+  estimator <- if (is_gaussian_fit(fit)) {
+    if (lme4::isREML(fit)) "REML" else "ML"
+  } else {
+    "ML (Laplace approximation)"
+  }
+  group_sizes <- lme4::ngrps(fit)
+  cat("<mlm_result>\n")
+  cat("  Formula:      ", paste(deparse(x$formula, width.cutoff = 500), collapse = " "), "\n", sep = "")
+  cat("  Distribution: ", x$spec$distribution, " (", x$spec$link, " link), estimated by ", estimator, "\n", sep = "")
+  cat("  Observations: ", stats::nobs(fit), " of ", nrow(x$data), " rows\n", sep = "")
+  cat("  Groups:       ", paste(sprintf("%s = %s", names(group_sizes), group_sizes), collapse = ", "), "\n", sep = "")
+  cat("  AIC:          ", sprintf("%.2f", stats::AIC(fit)), "\n", sep = "")
+  cat("  Singular fit: ", if (isTRUE(lme4::isSingular(fit, tol = 1e-4))) "yes" else "no", "\n\n", sep = "")
+  print(apa_fixed_table(fit), row.names = FALSE)
+  cat("\nUse mlm_apa_tables(), mlm_latex_equations(), or mlm_publication_bundle() for reporting output.\n")
+  invisible(x)
+}
+
+# Estimation settings for reporting. The fitted model is the source of truth:
+# values recorded by mlm_fit() win over arguments, which are only used for
+# results that do not carry settings (for example hand-built result lists).
+result_settings <- function(result, REML = NULL, optimizer = NULL, maxfun = NULL) {
+  stored <- result$settings %||% list()
+  fit_reml <- tryCatch(is_gaussian_fit(result$fit) && lme4::isREML(result$fit), error = function(e) NULL)
+  list(
+    REML = isTRUE(fit_reml %||% stored$REML %||% REML %||% TRUE),
+    optimizer = stored$optimizer %||% optimizer %||% "bobyqa",
+    maxfun = stored$maxfun %||% maxfun %||% 20000
+  )
 }
 
 variance_table <- function(fit) {
@@ -691,9 +1046,12 @@ variance_table <- function(fit) {
 }
 
 icc_table <- function(fit) {
+  if (!is_gaussian_fit(fit)) {
+    return(data.frame(group = character(), variance = numeric(), icc = numeric()))
+  }
   vc <- as.data.frame(lme4::VarCorr(fit))
-  intercepts <- vc[!identical(vc$grp, "Residual") & is.na(vc$var2) & vc$var1 == "(Intercept)", c("grp", "vcov"), drop = FALSE]
-  intercepts <- intercepts[!is.na(intercepts$grp), , drop = FALSE]
+  is_intercept <- vc$grp != "Residual" & is.na(vc$var2) & !is.na(vc$var1) & vc$var1 == "(Intercept)"
+  intercepts <- vc[is_intercept, c("grp", "vcov"), drop = FALSE]
   residual <- attr(lme4::VarCorr(fit), "sc")^2
   total <- sum(intercepts$vcov, na.rm = TRUE) + residual
   if (!nrow(intercepts) || !is.finite(total) || total <= 0) {
@@ -730,7 +1088,7 @@ mlm_supported_models <- function() {
       "Software citations"
     ),
     Status = c(
-      "Supported",
+      "Supported with scope warnings",
       "Supported",
       "Supported",
       "Experimental",
@@ -757,8 +1115,8 @@ mlm_supported_models <- function() {
       "Fixed interactions and cross-level interaction-style terms are supported.",
       "Factors and character variables are modeled using R's contrast system; dummy-coding summaries are reported.",
       "CSV, TSV/TXT, Excel, SPSS, SAS, and Stata files are supported when optional readers are installed.",
-      "Convergence messages, singular-fit checks, gradients, overdispersion for GLMMs, and variance summaries are reported.",
-      "APA tables, raw LaTeX, equations, Quarto-ready reports, and reproducible R code are supported.",
+      "Convergence messages, singular-fit checks, gradients, overdispersion for GLMMs, and variance summaries are reported; users should still evaluate design-specific diagnostics.",
+      "APA tables, raw LaTeX, equations, Quarto-ready reports, and reproducible R code are supported with explicit Wald-inference and GLMM ICC cautions.",
       "R/package version tables, APA software statements, and optional papaja citation code are supported."
     ),
     User_responsibility = c(
@@ -774,11 +1132,233 @@ mlm_supported_models <- function() {
       "Confirm reference categories and contrasts before reporting.",
       "Check variable types, missing data, and imported labels before fitting.",
       "Treat diagnostics as evidence for revision, not as automatic pass/fail decisions.",
-      "Review all manuscript text, labels, and notation before submission.",
+      "Review all manuscript text, labels, notation, and inferential method choices before submission.",
       "Confirm package citations meet the target journal or style guide."
     ),
     stringsAsFactors = FALSE,
     check.names = FALSE
+  )
+}
+
+mlm_hlm8_parity <- function() {
+  data.frame(
+    HLM8_workflow = c(
+      "Unconditional/null model",
+      "Random-intercept model",
+      "Random-slope model",
+      "Cross-level interaction",
+      "Two-level nested model",
+      "Three-level nested model",
+      "Centering decisions",
+      "Binary outcome HGLM",
+      "Count outcome HGLM",
+      "Model comparison",
+      "Variance components and ICCs",
+      "Equation display",
+      "Diagnostics",
+      "Publication tables",
+      "Reproducible syntax export",
+      "Software citation and methods text",
+      "Missing-data review",
+      "Multiple-imputation pooling",
+      "Reliability summaries",
+      "Fully weighted multiple membership"
+    ),
+    mlmr_status = c(
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Experimental",
+      "Experimental",
+      "Supported",
+      "Supported for Gaussian LMMs",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Supported",
+      "Planned",
+      "Planned",
+      "Out of current scope"
+    ),
+    Evidence = c(
+      "Model template and formula generation support intercept-only models.",
+      "Model template and lme4 random-intercept syntax are available.",
+      "Random slopes can be selected for numeric fixed predictors.",
+      "Fixed interactions are supported, including lower-by-higher level terms.",
+      "Grouping factors and random-effect blocks support standard two-level models.",
+      "Additional grouping factors support three-level nested models.",
+      "No centering, grand-mean centering, and cluster-mean centering are available.",
+      "Advanced mode fits binomial mixed models through lme4::glmer().",
+      "Advanced mode fits Poisson and negative-binomial mixed models.",
+      "Stored model history reports AIC, BIC, log likelihood, and LRT output.",
+      "Variance components are generated after fitting; classical ICC tables are generated for Gaussian mixed models and suppressed with warnings for GLMMs.",
+      "Level-by-level, combined, and Tau matrix equations are generated.",
+      "Convergence, singular fit, gradients, overdispersion, residual plots, and fitted plots are available.",
+      "APA fixed effects, dummy coding, variance components, Gaussian ICC, and software tables are available with inference notes.",
+      "Downloadable R code and Quarto-ready reports are generated from fitted models.",
+      "Publication bundle includes methods text, reproducibility checklist, and software statements.",
+      "Missingness summaries and imputation scaffold code are available.",
+      "Scaffold code exists, but pooled mixed-model reporting is not yet implemented.",
+      "Reliability-style HLM summaries need explicit design and validation.",
+      "Weighted multiple-membership models require methods outside the current lme4-backed production path."
+    ),
+    Next_step = c(
+      "Add benchmark comparison against a published null-model example.",
+      "Add benchmark estimates for common classroom examples.",
+      "Add more guardrails for over-complex random-slope structures.",
+      "Add interaction plotting and simple-slopes export.",
+      "Add a dedicated two-level tutorial and validation fixture.",
+      "Add a dedicated three-level tutorial and validation fixture.",
+      "Add teaching popovers explaining within, between, and contextual effects.",
+      "Add stronger binary-outcome diagnostics and reporting language.",
+      "Add count-specific diagnostics and incidence-rate-ratio table option.",
+      "Add clearer ML/REML switching guidance in the GUI.",
+      "Add reliability-style summaries where statistically appropriate.",
+      "Add notation customization for manuscript labels.",
+      "Add influence and cluster-level diagnostic summaries.",
+      "Add journal-style table presets.",
+      "Add one-click reproducibility bundle archive.",
+      "Add a software-paper-ready citation and methods appendix vignette.",
+      "Add explicit missing-data decision checklist.",
+      "Implement and validate pooling workflow before advertising as supported.",
+      "Define formulas and compare against HLM documentation/examples.",
+      "Document alternatives and avoid presenting as HLM parity."
+    ),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+}
+
+benchmark_specs <- function(dat) {
+  list(
+    null = mlm_spec(
+      outcome = "mathscore",
+      fixed = list(),
+      grouping = list(schoolid = "schoolid"),
+      random = list(schoolid = list(intercept = TRUE, slopes = character(), correlation = TRUE)),
+      data = dat
+    ),
+    random_intercept = mlm_spec(
+      outcome = "mathscore",
+      fixed = list(ses = list(center = "CWC"), meanses = list(center = "GMC")),
+      grouping = list(schoolid = "schoolid"),
+      random = list(schoolid = list(intercept = TRUE, slopes = character(), correlation = TRUE)),
+      data = dat
+    ),
+    random_slope = mlm_spec(
+      outcome = "mathscore",
+      fixed = list(ses = list(center = "CWC"), meanses = list(center = "GMC")),
+      grouping = list(schoolid = "schoolid"),
+      random = list(schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE)),
+      data = dat
+    ),
+    cross_level = mlm_spec(
+      outcome = "mathscore",
+      fixed = list(ses = list(center = "CWC"), sector = list(center = "none")),
+      grouping = list(schoolid = "schoolid"),
+      random = list(schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE)),
+      interactions = list(c("ses", "sector")),
+      data = dat
+    ),
+    three_level = mlm_spec(
+      outcome = "mathscore",
+      fixed = list(ses = list(center = "CWC"), meanses = list(center = "GMC")),
+      grouping = list(schoolid = "schoolid", districtid = "districtid"),
+      random = list(
+        schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE),
+        districtid = list(intercept = TRUE, slopes = character(), correlation = TRUE)
+      ),
+      data = dat
+    )
+  )
+}
+
+mlm_validation_benchmarks <- function(run = FALSE, seed = 20260423, tolerance = 0.5) {
+  dat <- example_hsb(n_schools = 8, min_students = 8, max_students = 10, seed = seed)
+  expected <- data.frame(
+    Benchmark = c("null", "random_intercept", "random_slope", "cross_level", "three_level"),
+    `Expected Formula` = c(
+      "mathscore ~ 1 + (1 | schoolid)",
+      "mathscore ~ ses_CWC + meanses_GMC + (1 | schoolid)",
+      "mathscore ~ ses_CWC + meanses_GMC + (1 + ses_CWC | schoolid)",
+      "mathscore ~ ses_CWC + sector + ses_CWC:sector + (1 + ses_CWC | schoolid)",
+      "mathscore ~ ses_CWC + meanses_GMC + (1 + ses_CWC | schoolid) + (1 | districtid)"
+    ),
+    `Expected AIC` = c(566.8003, 537.3551, 540.7158, 539.3033, 542.7158),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+  specs <- benchmark_specs(dat)
+  rows <- lapply(names(specs), function(name) {
+    spec <- specs[[name]]
+    formula_text <- paste(deparse(build_formula(spec), width.cutoff = 500), collapse = " ")
+    readiness <- model_readiness_table(dat, spec)
+    expected_row <- expected[expected$Benchmark == name, , drop = FALSE]
+    row <- data.frame(
+      Benchmark = name,
+      Formula = formula_text,
+      `Expected Formula` = expected_row$`Expected Formula`,
+      `Formula Match` = identical(formula_text, expected_row$`Expected Formula`),
+      `Readiness Stops` = sum(readiness$Status == "Stop"),
+      `Fit Tested` = "No",
+      AIC = NA_real_,
+      `Expected AIC` = expected_row$`Expected AIC`,
+      `AIC Difference` = NA_real_,
+      `Validation Status` = if (identical(formula_text, expected_row$`Expected Formula`) && sum(readiness$Status == "Stop") == 0) "Formula validated" else "Review",
+      `Fixed Effects` = length(names(spec$fixed)),
+      `Random Blocks` = length(names(spec$random)),
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+    if (isTRUE(run)) {
+      fit <- mlm_fit(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 10000)
+      row$`Fit Tested` <- "Yes"
+      row$AIC <- stats::AIC(fit$fit)
+      row$`AIC Difference` <- abs(row$AIC - row$`Expected AIC`)
+      row$`Validation Status` <- if (
+        isTRUE(row$`Formula Match`) &&
+          row$`Readiness Stops` == 0 &&
+          is.finite(row$`AIC Difference`) &&
+          row$`AIC Difference` <= tolerance
+      ) "Validated" else "Review"
+    }
+    row
+  })
+  out <- do.call(rbind, rows)
+  row.names(out) <- NULL
+  out
+}
+
+mlm_validation_report <- function(seed = 20260423, tolerance = 0.5) {
+  dat <- example_hsb(n_schools = 8, min_students = 8, max_students = 10, seed = seed)
+  specs <- benchmark_specs(dat)
+  add_benchmark <- function(tab, name) {
+    if (!nrow(tab)) return(tab)
+    data.frame(Benchmark = name, tab, check.names = FALSE, stringsAsFactors = FALSE)
+  }
+  fits <- lapply(specs, function(spec) {
+    mlm_fit(spec, REML = TRUE, optimizer = "bobyqa", maxfun = 10000)
+  })
+  fixed <- do.call(rbind, lapply(names(fits), function(name) add_benchmark(apa_fixed_table(fits[[name]]$fit), name)))
+  variance <- do.call(rbind, lapply(names(fits), function(name) add_benchmark(variance_table(fits[[name]]$fit), name)))
+  icc <- do.call(rbind, lapply(names(fits), function(name) add_benchmark(icc_table(fits[[name]]$fit), name)))
+  diagnostics <- do.call(rbind, lapply(names(fits), function(name) add_benchmark(mlm_diagnostics(fits[[name]]$fit), name)))
+  row.names(fixed) <- row.names(variance) <- row.names(icc) <- row.names(diagnostics) <- NULL
+  list(
+    generated_at = format(Sys.time(), "%Y-%m-%d %H:%M:%S %Z"),
+    seed = seed,
+    tolerance = tolerance,
+    benchmarks = mlm_validation_benchmarks(run = TRUE, seed = seed, tolerance = tolerance),
+    fixed_effects = fixed,
+    variance_components = variance,
+    icc = icc,
+    diagnostics = diagnostics
   )
 }
 
@@ -929,44 +1509,68 @@ software_repro_code <- function(packages = mlm_default_packages()) {
 
 fixed_effects_table <- function(fit) {
   coefs <- coef(summary(fit))
+  stat_col <- intersect(c("t value", "z value"), colnames(coefs))
+  estimate <- coefs[, "Estimate"]
+  se <- coefs[, "Std. Error"]
+  stat <- if (length(stat_col)) coefs[, stat_col[[1]]] else estimate / se
   out <- data.frame(term = rownames(coefs), coefs, check.names = FALSE, row.names = NULL)
-  names(out) <- sub("Pr\\(>\\|t\\|\\)", "p", names(out))
-  stat_col <- intersect(c("t value", "z value"), names(out))
-  stat <- if (length(stat_col)) out[[stat_col[[1]]]] else out$Estimate / out$`Std. Error`
-  p <- 2 * stats::pnorm(abs(stat), lower.tail = FALSE)
-  out$p <- p
-  out$CI_low <- out$Estimate - stats::qnorm(.975) * out$`Std. Error`
-  out$CI_high <- out$Estimate + stats::qnorm(.975) * out$`Std. Error`
+  out$p <- 2 * stats::pnorm(abs(stat), lower.tail = FALSE)
+  out$CI_low <- estimate - stats::qnorm(.975) * se
+  out$CI_high <- estimate + stats::qnorm(.975) * se
   out
+}
+
+# Label for exponentiated coefficients, or NULL when exponentiating is not
+# meaningful for the model's link function.
+exponentiated_label <- function(fit) {
+  if (is_gaussian_fit(fit)) return(NULL)
+  fam <- stats::family(fit)
+  if (identical(fam$link, "logit")) return("OR")
+  if (identical(fam$link, "log")) {
+    return(if (grepl("^(poisson|Negative Binomial)", fam$family)) "IRR" else "exp(b)")
+  }
+  NULL
 }
 
 mlm_equations <- function(result) {
   spec <- result$spec
-  fixed_terms <- effective_fixed_terms(spec$fixed)
-  beta_terms <- paste0("beta_", seq_along(fixed_terms), "(", fixed_terms, ")")
-  fixed_rhs <- paste(c("beta_0", beta_terms), collapse = " + ")
-  random_lines <- character()
-  for (group_name in names(spec$random)) {
-    rand <- spec$random[[group_name]]
-    group_var <- spec$grouping[[group_name]] %||% group_name
-    slopes <- rand$slopes %||% character()
-    random_lines <- c(
-      random_lines,
-      sprintf("%s random effects: intercept%s vary by %s; covariance structure is %s.",
-              group_name,
-              if (length(slopes)) paste0(" and slopes for ", paste(slopes, collapse = ", ")) else "",
-              group_var,
-              if (isTRUE(rand$correlation)) "correlated" else "independent")
-    )
+  coef_names <- names(lme4::fixef(result$fit))
+  slopes <- setdiff(coef_names, "(Intercept)")
+  beta_terms <- sprintf("b%s*%s", seq_along(slopes), slopes)
+  fixed_rhs <- paste(c(if ("(Intercept)" %in% coef_names) "b0", beta_terms), collapse = " + ")
+  lhs <- if (is_gaussian_fit(result$fit)) {
+    sprintf("E[%s]", spec$outcome)
+  } else {
+    sprintf("%s(E[%s])", stats::family(result$fit)$link, spec$outcome)
   }
+  cnms <- lme4::getME(result$fit, "cnms")
+  random_lines <- vapply(unique(names(cnms)), function(group) {
+    components <- cnms[names(cnms) == group]
+    labels <- unlist(components, use.names = FALSE)
+    structure_text <- if (length(labels) < 2) {
+      "a single variance"
+    } else if (length(components) == 1) {
+      "correlated effects"
+    } else if (all(lengths(components) == 1)) {
+      "independent effects"
+    } else {
+      "partly correlated effects"
+    }
+    sprintf(
+      "Random effects by %s: %s (%s).",
+      group, paste(sub("(Intercept)", "intercept", labels, fixed = TRUE), collapse = ", "), structure_text
+    )
+  }, character(1))
   c(
-    sprintf("Fixed component: E[%s] = %s", spec$outcome, fixed_rhs),
-    random_lines,
-    sprintf("Fitted formula: %s", deparse(result$formula))
+    sprintf("Fixed component: %s = %s", lhs, fixed_rhs),
+    unname(random_lines),
+    sprintf("Fitted formula: %s", paste(deparse(result$formula, width.cutoff = 500), collapse = " "))
   )
 }
 
 latex_escape <- function(x) {
+  x <- gsub("\\", "/", x, fixed = TRUE)
+  x <- gsub("([{}$#%&^~`])", "", x, perl = TRUE)
   gsub("_", "\\_", x, fixed = TRUE)
 }
 
@@ -974,121 +1578,403 @@ latex_var <- function(x) {
   paste0("\\mathrm{", latex_escape(x), "}")
 }
 
-mlm_latex_equations <- function(result) {
-  spec <- result$spec
-  fixed_terms <- model_fixed_terms(spec)
-  fixed_labels <- latex_var(fixed_terms)
-  groups <- names(spec$random)
-  primary <- first_or(groups, "j")
-  secondary <- if (length(groups) >= 2) groups[[2]] else NULL
-  beta_rhs <- c("\\beta_{0j}", paste0("\\beta_{", seq_along(fixed_labels), "j}", fixed_labels, "_{ij}"))
-  level1 <- paste0(latex_escape(spec$outcome), "_{ij} = ", paste(beta_rhs, collapse = " + "), " + r_{ij}")
-  random_slope_terms <- unique(unlist(lapply(spec$random, function(x) {
-    vapply(x$slopes %||% character(), effective_term, character(1), fixed = spec$fixed)
-  })))
-  level2 <- c("\\beta_{0j} = \\gamma_{00} + u_{0j}")
-  if (length(fixed_labels)) {
-    level2 <- c(level2, paste0("\\beta_{", seq_along(fixed_labels), "j} = \\gamma_{", seq_along(fixed_labels), "0}",
-                               ifelse(fixed_terms %in% random_slope_terms, paste0(" + u_{", seq_along(fixed_labels), "j}"), "")))
-  }
-  level3 <- character()
-  if (!is.null(secondary)) {
-    level3 <- c("\\gamma_{00k} = \\pi_{000} + v_{00k}", "\\gamma_{p0k} = \\pi_{p00}")
-  }
-  combined <- paste0(
-    latex_escape(spec$outcome), "_{ij} = \\gamma_{00}",
-    if (length(fixed_labels)) paste0(" + ", paste(paste0("\\gamma_{", seq_along(fixed_labels), "0}", fixed_labels, "_{ij}"), collapse = " + ")) else "",
-    " + u_{0j}",
-    if (length(random_slope_terms)) paste0(" + ", paste(paste0("u_{", match(random_slope_terms, fixed_terms), "j}", latex_var(random_slope_terms), "_{ij}"), collapse = " + ")) else "",
-    " + r_{ij}"
-  )
-  tau <- tau_latex(result)
-  list(
-    level = c("Level 1", "Level 2", if (length(level3)) "Level 3"),
-    equations = c(level1, paste(level2, collapse = "\\\\ "), if (length(level3)) paste(level3, collapse = "\\\\ ")),
-    combined = combined,
-    tau = tau
-  )
+# Subscript indices are concatenated HLM-style (gamma_10) unless an index
+# needs two digits, in which case they are comma separated.
+equation_index <- function(index) {
+  if (any(index > 9)) paste(index, collapse = ",") else paste(index, collapse = "")
 }
 
-tau_latex <- function(result) {
-  spec <- result$spec
-  fixed_terms <- model_fixed_terms(spec)
-  blocks <- character()
-  for (group_name in names(spec$random)) {
-    rand <- spec$random[[group_name]]
-    random_slope_terms <- vapply(rand$slopes %||% character(), effective_term, character(1), fixed = spec$fixed)
-    coefficient_labels <- c("Intercept", fixed_terms)
-    random_flags <- c(isTRUE(rand$intercept), fixed_terms %in% random_slope_terms)
-    n <- length(coefficient_labels)
-    if (!n) next
-    u_vec <- paste0("u_{", seq_len(n) - 1, "j}")
-    zero_vec <- rep("0", n)
-    cells <- matrix("", nrow = n, ncol = n)
-    for (i in seq_len(n)) {
-      for (j in seq_len(n)) {
-        if (j > i) {
-          cells[i, j] <- "\\cdot"
-        } else if (!random_flags[[i]] || !random_flags[[j]]) {
-          cells[i, j] <- "0"
-        } else if (i == j) {
-          cells[i, j] <- sprintf("\\tau_{%s%s}", i - 1, j - 1)
-        } else if (isTRUE(rand$correlation)) {
-          cells[i, j] <- sprintf("\\tau_{%s%s}", i - 1, j - 1)
-        } else {
-          cells[i, j] <- "0"
-        }
-      }
+constant_within <- function(x, group) {
+  x <- as.character(x)
+  first <- x[match(group, group)]
+  same <- x == first
+  same[is.na(x) & is.na(first)] <- TRUE
+  same[is.na(same)] <- FALSE
+  all(same)
+}
+
+is_nested_in <- function(lower, higher) {
+  constant_within(higher, lower)
+}
+
+# Orders grouping factors from the lowest level (most units) upward and reports
+# whether they form a strict hierarchy in the fitted data.
+equation_groups <- function(fit) {
+  flist <- lme4::getME(fit, "flist")
+  groups <- unique(names(lme4::getME(fit, "cnms")))
+  n_units <- vapply(groups, function(g) nlevels(droplevels(flist[[g]])), integer(1))
+  groups <- groups[order(-n_units)]
+  nested <- TRUE
+  if (length(groups) > 1) {
+    for (i in seq_len(length(groups) - 1)) {
+      if (!is_nested_in(flist[[groups[[i]]]], flist[[groups[[i + 1]]]])) nested <- FALSE
     }
-    row_text <- apply(cells, 1, paste, collapse = " & ")
-    blocks <- c(
-      blocks,
-      sprintf(
-        "\\begin{bmatrix}%s\\end{bmatrix}_{%s} \\sim MVN\\left(\\begin{bmatrix}%s\\end{bmatrix},\\begin{bmatrix}%s\\end{bmatrix}\\right)\\quad \\text{%s: %s}",
-        paste(u_vec, collapse = "\\\\ "),
-        latex_escape(group_name),
-        paste(zero_vec, collapse = "\\\\ "),
-        paste(row_text, collapse = "\\\\ "),
-        latex_escape(group_name),
-        paste(latex_escape(coefficient_labels), collapse = ", ")
-      )
+  }
+  list(groups = groups, nested = nested, flist = flist)
+}
+
+# Splits every fixed-effect coefficient into the parts that vary at each level
+# of a nested design. Returns NULL when the model cannot be written in
+# level-by-level form (crossed factors, four or more levels, or coefficient
+# names that cannot be matched to model terms).
+equation_levels <- function(fit) {
+  grp <- equation_groups(fit)
+  groups <- grp$groups
+  if (!grp$nested || length(groups) > 2) return(NULL)
+  n_levels <- length(groups) + 1L
+  X <- lme4::getME(fit, "X")
+  coef_names <- colnames(X)
+  assign <- attr(X, "assign")
+  term_labels <- attr(stats::terms(fit), "term.labels")
+  if (is.null(assign) || length(assign) != length(coef_names)) return(NULL)
+  frame <- stats::model.frame(fit)
+  variable_level <- function(variable) {
+    variable <- gsub("`", "", variable, fixed = TRUE)
+    if (!variable %in% names(frame)) return(NA_integer_)
+    level <- 1L
+    for (group in groups) {
+      if (!constant_within(frame[[variable]], grp$flist[[group]])) break
+      level <- level + 1L
+    }
+    level
+  }
+  parts <- matrix("", nrow = length(coef_names), ncol = n_levels)
+  for (j in seq_along(coef_names)) {
+    if (assign[[j]] == 0) next
+    variables <- strsplit(term_labels[[assign[[j]]]], ":", fixed = TRUE)[[1]]
+    components <- strsplit(coef_names[[j]], ":", fixed = TRUE)[[1]]
+    if (length(variables) != length(components)) return(NULL)
+    levels <- vapply(variables, variable_level, integer(1))
+    if (anyNA(levels)) return(NULL)
+    for (level in seq_len(n_levels)) {
+      parts[j, level] <- paste(components[levels == level], collapse = ":")
+    }
+  }
+  # Index each coefficient within its parent: an empty part is index 0.
+  index <- matrix(0L, nrow = length(coef_names), ncol = n_levels)
+  for (level in seq_len(n_levels)) {
+    parent <- if (level == 1) rep("", length(coef_names)) else apply(index[, seq_len(level - 1), drop = FALSE], 1, paste, collapse = ".")
+    for (key in unique(parent)) {
+      rows <- which(parent == key)
+      labels <- unique(parts[rows, level])
+      labels <- labels[nzchar(labels)]
+      index[rows, level] <- match(parts[rows, level], labels, nomatch = 0L)
+    }
+  }
+  # Map each random effect to the coefficient equation it belongs to.
+  cnms <- lme4::getME(fit, "cnms")
+  random <- list()
+  for (depth in seq_along(groups)) {
+    components <- cnms[names(cnms) == groups[[depth]]]
+    labels <- unlist(components, use.names = FALSE)
+    prefixes <- matrix(0L, nrow = length(labels), ncol = depth)
+    for (i in seq_along(labels)) {
+      if (identical(labels[[i]], "(Intercept)")) next
+      row <- match(labels[[i]], coef_names)
+      if (is.na(row) || any(index[row, seq_len(n_levels) > depth] != 0L)) return(NULL)
+      prefixes[i, ] <- index[row, seq_len(depth)]
+    }
+    random[[groups[[depth]]]] <- list(
+      labels = labels,
+      prefixes = prefixes,
+      component = rep(seq_along(components), lengths(components))
     )
   }
-  blocks
+  order_rows <- do.call(order, as.data.frame(index))
+  list(
+    n_levels = n_levels, groups = groups, coef_names = coef_names,
+    parts = parts, index = index, random = random, order = order_rows
+  )
 }
 
-apa_fixed_table <- function(fit) {
+equation_link_line <- function(result, eta, outcome_tex) {
+  link <- stats::family(result$fit)$link
+  mean_tex <- if (identical(result$spec$distribution, "binomial")) {
+    sprintf("P(%s = 1)", outcome_tex)
+  } else {
+    sprintf("E(%s)", outcome_tex)
+  }
+  rhs <- switch(
+    link,
+    logit = sprintf("\\mathrm{logit}\\left[%s\\right]", mean_tex),
+    probit = sprintf("\\mathrm{probit}\\left[%s\\right]", mean_tex),
+    log = sprintf("\\mathrm{log}\\left[%s\\right]", mean_tex),
+    inverse = sprintf("1 / %s", mean_tex),
+    sprintf("\\mathrm{%s}\\left[%s\\right]", latex_escape(link), mean_tex)
+  )
+  paste(eta, "=", rhs)
+}
+
+tau_block_latex <- function(symbols, cells, group, labels) {
+  sprintf(
+    "\\begin{bmatrix}%s\\end{bmatrix}_{%s} \\sim MVN\\left(\\begin{bmatrix}%s\\end{bmatrix},\\begin{bmatrix}%s\\end{bmatrix}\\right)\\quad \\text{%s: %s}",
+    paste(symbols, collapse = "\\\\ "),
+    latex_escape(group),
+    paste(rep("0", length(symbols)), collapse = "\\\\ "),
+    paste(apply(cells, 1, paste, collapse = " & "), collapse = "\\\\ "),
+    latex_escape(group),
+    paste(latex_escape(labels), collapse = ", ")
+  )
+}
+
+equation_plain <- function(x) {
+  x <- gsub("\\\\(beta|gamma|pi|tau|eta)", "\\1", x)
+  x <- gsub("[{}]", "", x)
+  gsub("\\", "", x, fixed = TRUE)
+}
+
+# Level-by-level (hierarchical) notation for two- and three-level nested models.
+equations_hierarchical <- function(result, lev) {
+  fit <- result$fit
+  n_levels <- lev$n_levels
+  gaussian <- is_gaussian_fit(fit)
+  coef_symbol <- if (n_levels == 2) c("\\beta", "\\gamma") else c("\\pi", "\\beta", "\\gamma")
+  random_symbol <- if (n_levels == 2) "u" else c("r", "u")
+  residual_symbol <- if (n_levels == 2) "r" else "e"
+  subs <- if (n_levels == 2) c("ij", "j") else c("ijk", "jk", "k")
+  tails <- substring(subs, 2)
+  index <- lev$index
+  parts <- lev$parts
+  symbol <- function(base, prefix, tail) sprintf("%s_{%s%s}", base, equation_index(prefix), tail)
+  variable_tex <- function(part, sub) {
+    if (!nzchar(part)) return("")
+    components <- strsplit(part, ":", fixed = TRUE)[[1]]
+    paste(sprintf("%s_{%s}", latex_var(components), sub), collapse = "\\,")
+  }
+  key_of <- function(prefix) paste(prefix, collapse = ".")
+  part_for <- function(prefix) {
+    depth <- length(prefix)
+    rows <- which(apply(index[, seq_len(depth), drop = FALSE], 1, key_of) == key_of(prefix))
+    parts[rows[[1]], depth]
+  }
+  has_random <- function(depth, prefix) {
+    rand <- lev$random[[lev$groups[[depth]]]]
+    any(apply(rand$prefixes, 1, key_of) == key_of(prefix))
+  }
+  outcome_tex <- sprintf("%s_{%s}", latex_var(result$spec$outcome), subs[[1]])
+  eta <- sprintf("\\eta_{%s}", subs[[1]])
+  lhs <- if (gaussian) outcome_tex else eta
+
+  # Level 1.
+  level1_children <- sort(unique(index[, 1]))
+  level1_terms <- vapply(level1_children, function(p) {
+    paste0(symbol(coef_symbol[[1]], p, tails[[1]]), variable_tex(part_for(p), subs[[1]]))
+  }, character(1))
+  level1 <- paste(lhs, "=", paste(c(level1_terms, if (gaussian) sprintf("%s_{%s}", residual_symbol, subs[[1]])), collapse = " + "))
+  if (!gaussian) level1 <- paste(equation_link_line(result, eta, outcome_tex), level1, sep = "\\\\ ")
+
+  # Higher levels: one equation per coefficient of the level below.
+  higher <- lapply(seq_len(n_levels - 1), function(depth) {
+    prefixes <- unique(index[lev$order, seq_len(depth), drop = FALSE])
+    lines <- vapply(seq_len(nrow(prefixes)), function(i) {
+      prefix <- prefixes[i, ]
+      rows <- which(apply(index[, seq_len(depth), drop = FALSE], 1, key_of) == key_of(prefix))
+      children <- sort(unique(index[rows, depth + 1]))
+      terms <- vapply(children, function(child) {
+        paste0(
+          symbol(coef_symbol[[depth + 1]], c(prefix, child), tails[[depth + 1]]),
+          variable_tex(part_for(c(prefix, child)), subs[[depth + 1]])
+        )
+      }, character(1))
+      if (has_random(depth, prefix)) terms <- c(terms, symbol(random_symbol[[depth]], prefix, tails[[depth]]))
+      paste(symbol(coef_symbol[[depth]], prefix, tails[[depth]]), "=", paste(terms, collapse = " + "))
+    }, character(1))
+    paste(lines, collapse = "\\\\ ")
+  })
+
+  # Combined (mixed-model) equation.
+  fixed_terms <- vapply(lev$order, function(row) {
+    variables <- vapply(rev(seq_len(n_levels)), function(level) variable_tex(parts[row, level], subs[[level]]), character(1))
+    paste(c(symbol("\\gamma", index[row, ], ""), variables[nzchar(variables)]), collapse = "")
+  }, character(1))
+  random_terms <- unlist(lapply(seq_along(lev$groups), function(depth) {
+    rand <- lev$random[[lev$groups[[depth]]]]
+    prefixes <- unique(rand$prefixes[do.call(order, as.data.frame(rand$prefixes)), , drop = FALSE])
+    vapply(seq_len(nrow(prefixes)), function(i) {
+      prefix <- prefixes[i, ]
+      variables <- vapply(rev(seq_len(depth)), function(level) {
+        if (prefix[[level]] == 0L) "" else variable_tex(part_for(prefix[seq_len(level)]), subs[[level]])
+      }, character(1))
+      paste(c(symbol(random_symbol[[depth]], prefix, tails[[depth]]), variables[nzchar(variables)]), collapse = "")
+    }, character(1))
+  }))
+  combined <- paste(lhs, "=", paste(c(fixed_terms, random_terms, if (gaussian) sprintf("%s_{%s}", residual_symbol, subs[[1]])), collapse = " + "))
+
+  # Tau matrices, one per grouping factor.
+  tau_tag <- if (n_levels == 2) "" else c("\\pi ", "\\beta ")
+  blocks <- lapply(seq_along(lev$groups), function(depth) {
+    group <- lev$groups[[depth]]
+    rand <- lev$random[[group]]
+    labels_index <- apply(rand$prefixes, 1, equation_index)
+    symbols <- vapply(seq_along(rand$labels), function(i) symbol(random_symbol[[depth]], rand$prefixes[i, ], tails[[depth]]), character(1))
+    n <- length(symbols)
+    cells <- matrix("0", nrow = n, ncol = n)
+    for (i in seq_len(n)) {
+      for (j in seq_len(n)) {
+        if (rand$component[[i]] != rand$component[[j]]) next
+        pair <- c(labels_index[[max(i, j)]], labels_index[[min(i, j)]])
+        cells[i, j] <- sprintf("\\tau_{%s%s}", tau_tag[[depth]], paste(pair, collapse = if (depth > 1 || any(nchar(pair) > 1)) "," else ""))
+      }
+    }
+    list(group = group, labels = rand$labels, symbols = symbols, cells = cells)
+  })
+
+  key <- data.frame(
+    Symbol = equation_plain(vapply(lev$order, function(row) symbol("\\gamma", index[row, ], ""), character(1))),
+    Coefficient = lev$coef_names[lev$order],
+    Estimate = unname(lme4::fixef(fit)[lev$coef_names[lev$order]]),
+    stringsAsFactors = FALSE
+  )
+  level_labels <- c("Level 1", sprintf("Level %s (%s)", seq_along(lev$groups) + 1L, lev$groups))
+  list(
+    level = level_labels,
+    equations = c(level1, unlist(higher)),
+    combined = combined,
+    blocks = blocks,
+    key = key,
+    notation = if (n_levels == 2) "two-level hierarchical" else "three-level hierarchical"
+  )
+}
+
+# Single mixed-model equation for crossed or otherwise non-hierarchical designs.
+equations_mixed <- function(result) {
+  fit <- result$fit
+  gaussian <- is_gaussian_fit(fit)
+  coef_names <- names(lme4::fixef(fit))
+  slopes <- setdiff(coef_names, "(Intercept)")
+  grp <- equation_groups(fit)
+  cnms <- lme4::getME(fit, "cnms")
+  unit_letters <- c("j", "k", "l", "m", "n", "o")
+  random_letters <- c("u", "v", "w", "z", "a", "d")
+  variable_tex <- function(name) {
+    components <- strsplit(name, ":", fixed = TRUE)[[1]]
+    paste(sprintf("%s_{i}", latex_var(components)), collapse = "\\,")
+  }
+  outcome_tex <- sprintf("%s_{i}", latex_var(result$spec$outcome))
+  lhs <- if (gaussian) outcome_tex else "\\eta_{i}"
+  fixed_terms <- c(
+    if ("(Intercept)" %in% coef_names) "\\beta_{0}",
+    sprintf("\\beta_{%s}%s", seq_along(slopes), vapply(slopes, variable_tex, character(1)))
+  )
+  blocks <- lapply(seq_along(grp$groups), function(g) {
+    group <- grp$groups[[g]]
+    unit <- unit_letters[[(g - 1) %% length(unit_letters) + 1]]
+    letter <- random_letters[[(g - 1) %% length(random_letters) + 1]]
+    components <- cnms[names(cnms) == group]
+    labels <- unlist(components, use.names = FALSE)
+    component <- rep(seq_along(components), lengths(components))
+    label_index <- match(labels, c("(Intercept)", slopes)) - 1L
+    if (anyNA(label_index)) label_index <- seq_along(labels) - 1L
+    symbols <- sprintf("%s_{%s%s}", letter, label_index, unit)
+    n <- length(labels)
+    cells <- matrix("0", nrow = n, ncol = n)
+    for (i in seq_len(n)) {
+      for (j in seq_len(n)) {
+        if (component[[i]] != component[[j]]) next
+        pair <- c(label_index[[max(i, j)]], label_index[[min(i, j)]])
+        cells[i, j] <- sprintf("\\tau_{%s %s}", letter, paste(pair, collapse = if (any(pair > 9)) "," else ""))
+      }
+    }
+    terms <- paste0(
+      sprintf("%s_{%s%s[i]}", letter, label_index, unit),
+      vapply(labels, function(label) if (identical(label, "(Intercept)")) "" else variable_tex(label), character(1))
+    )
+    list(group = group, labels = labels, symbols = symbols, cells = cells, terms = terms)
+  })
+  equation <- paste(lhs, "=", paste(c(fixed_terms, unlist(lapply(blocks, `[[`, "terms")), if (gaussian) "e_{i}"), collapse = " + "))
+  equations <- if (gaussian) equation else paste(equation_link_line(result, "\\eta_{i}", outcome_tex), equation, sep = "\\\\ ")
+  key <- data.frame(
+    Symbol = c(if ("(Intercept)" %in% coef_names) "beta_0", sprintf("beta_%s", seq_along(slopes))),
+    Coefficient = c(if ("(Intercept)" %in% coef_names) "(Intercept)", slopes),
+    stringsAsFactors = FALSE
+  )
+  key$Estimate <- unname(lme4::fixef(fit)[key$Coefficient])
+  list(
+    level = "Mixed-model form",
+    equations = equations,
+    combined = equation,
+    blocks = lapply(blocks, function(block) block[c("group", "labels", "symbols", "cells")]),
+    key = key,
+    notation = "mixed-model"
+  )
+}
+
+equation_structure <- function(result) {
+  lev <- tryCatch(equation_levels(result$fit), error = function(e) NULL)
+  if (is.null(lev)) equations_mixed(result) else equations_hierarchical(result, lev)
+}
+
+mlm_latex_equations <- function(result) {
+  eq <- equation_structure(result)
+  note <- switch(
+    eq$notation,
+    `mixed-model` = "The grouping factors are crossed or exceed three levels, so the model is written as a single mixed-model equation. Index i denotes observations and j[i], k[i] denote the units that observation i belongs to.",
+    "Predictors are assigned to levels from the fitted data: a predictor that is constant within every unit of a grouping factor is treated as measured at that level. Cross-level interactions appear in the equation for the lower-level coefficient they moderate."
+  )
+  list(
+    level = eq$level,
+    equations = eq$equations,
+    combined = eq$combined,
+    tau = tau_latex(result, eq),
+    key = eq$key,
+    notation = eq$notation,
+    note = note
+  )
+}
+
+tau_blocks <- function(result, eq = equation_structure(result)) {
+  eq$blocks
+}
+
+tau_latex <- function(result, eq = equation_structure(result)) {
+  vapply(eq$blocks, function(block) {
+    tau_block_latex(block$symbols, block$cells, block$group, block$labels)
+  }, character(1))
+}
+
+apa_fixed_table <- function(fit, exponentiate = FALSE) {
   tab <- fixed_effects_table(fit)
   stat_col <- intersect(c("t value", "z value"), names(tab))
   stat <- if (length(stat_col)) tab[[stat_col[[1]]]] else tab$Estimate / tab$`Std. Error`
-  p <- 2 * stats::pnorm(abs(stat), lower.tail = FALSE)
-  ci_low <- tab$Estimate - stats::qnorm(.975) * tab$`Std. Error`
-  ci_high <- tab$Estimate + stats::qnorm(.975) * tab$`Std. Error`
   out <- data.frame(
     Predictor = tab$term,
     b = sprintf("%.2f", tab$Estimate),
     SE = sprintf("%.2f", tab$`Std. Error`),
     Statistic = sprintf("%.2f", stat),
-    p = ifelse(p < .001, "< .001", sprintf("%.3f", p)),
-    `95% CI` = sprintf("[%.2f, %.2f]", ci_low, ci_high),
+    p = ifelse(tab$p < .001, "< .001", sprintf("%.3f", tab$p)),
+    `95% CI` = sprintf("[%.2f, %.2f]", tab$CI_low, tab$CI_high),
     check.names = FALSE,
     stringsAsFactors = FALSE
   )
+  label <- exponentiated_label(fit)
+  if (isTRUE(exponentiate) && !is.null(label)) {
+    out[[label]] <- sprintf("%.2f", exp(tab$Estimate))
+    out[[sprintf("%s 95%% CI", label)]] <- sprintf("[%.2f, %.2f]", exp(tab$CI_low), exp(tab$CI_high))
+  }
   out
 }
 
 latex_table_escape <- function(x) {
-  x <- gsub("\\", "\\textbackslash{}", x, fixed = TRUE)
+  x <- as.character(x)
+  x <- gsub("\\", "\001", x, fixed = TRUE)
+  x <- gsub("([{}])", "\\\\\\1", x, perl = TRUE)
+  x <- gsub("\001", "\\textbackslash{}", x, fixed = TRUE)
   x <- gsub("_", "\\_", x, fixed = TRUE)
   x <- gsub("%", "\\%", x, fixed = TRUE)
   x <- gsub("&", "\\&", x, fixed = TRUE)
+  x <- gsub("#", "\\#", x, fixed = TRUE)
+  x <- gsub("$", "\\$", x, fixed = TRUE)
+  x <- gsub("^", "\\textasciicircum{}", x, fixed = TRUE)
+  x <- gsub("~", "\\textasciitilde{}", x, fixed = TRUE)
   x <- gsub("<", "$<$", x, fixed = TRUE)
+  x <- gsub(">", "$>$", x, fixed = TRUE)
   x
 }
 
-apa_fixed_latex <- function(fit, caption = "Fixed effects from the multilevel model.", label = "tab:fixed-effects") {
-  tab <- apa_fixed_table(fit)
-  apa_latex_table(tab, caption = caption, label = label, colspec = "lrrrrp{1.45in}")
+apa_fixed_latex <- function(fit, caption = "Fixed effects from the multilevel model.", label = "tab:fixed-effects", exponentiate = FALSE) {
+  tab <- apa_fixed_table(fit, exponentiate = exponentiate)
+  colspec <- paste0("lrrrrp{1.45in}", if (ncol(tab) > 6) "rp{1.45in}" else "")
+  apa_latex_table(tab, caption = caption, label = label, colspec = colspec)
 }
 
 apa_latex_table <- function(tab, caption, label, colspec = NULL) {
@@ -1182,6 +2068,85 @@ latex_display_equation <- function(equation, terms_per_line = 3) {
   paste0("\\[\n\\begin{array}{rcl}\n", paste(rows, collapse = "\\\\[0.45em]\n"), "\n\\end{array}\n\\]")
 }
 
+render_latex_piece <- function(x) {
+  x <- html_escape(x)
+  x <- gsub("\\\\_", "_", x, fixed = FALSE)
+  x <- gsub("\\\\left", "", x)
+  x <- gsub("\\\\right", "", x)
+  x <- gsub("\\\\quad", " ", x)
+  x <- gsub("\\\\,", " ", x)
+  x <- gsub("\\\\sim", "<span class='eq-op'>&sim;</span>", x)
+  x <- gsub("\\\\cdot", "&middot;", x)
+  x <- gsub("\\\\eta", "&eta;", x)
+  x <- gsub("\\\\beta", "&beta;", x)
+  x <- gsub("\\\\gamma", "&gamma;", x)
+  x <- gsub("\\\\tau", "&tau;", x)
+  x <- gsub("\\\\pi", "&pi;", x)
+  x <- gsub("\\\\mathrm\\{([^{}]+)\\}", "<span class='eq-var'>\\1</span>", x, perl = TRUE)
+  x <- gsub("\\\\text\\{([^{}]+)\\}", "<span class='eq-text'>\\1</span>", x, perl = TRUE)
+  x <- gsub("_\\{([^{}]+)\\}", "<sub>\\1</sub>", x, perl = TRUE)
+  x <- gsub("\\\\", "", x, fixed = TRUE)
+  x
+}
+
+render_bmatrix_html <- function(content) {
+  rows <- strsplit(content, "\\\\\\\\", perl = TRUE)[[1]]
+  rows <- rows[nzchar(trimws(rows))]
+  cells <- lapply(rows, function(row) {
+    cols <- strsplit(row, "\\s*&\\s*", perl = TRUE)[[1]]
+    paste(sprintf("<td>%s</td>", vapply(cols, render_latex_piece, character(1))), collapse = "")
+  })
+  paste0("<span class='eq-matrix-frame'><table class='eq-matrix' aria-label='Matrix'><tbody>",
+         paste(sprintf("<tr>%s</tr>", unlist(cells, use.names = FALSE)), collapse = ""),
+         "</tbody></table></span>")
+}
+
+replace_bmatrix_html <- function(x) {
+  pattern <- "\\\\begin\\{bmatrix\\}(.+?)\\\\end\\{bmatrix\\}"
+  repeat {
+    match <- regexpr(pattern, x, perl = TRUE)
+    if (match[[1]] < 0) break
+    full <- regmatches(x, match)
+    content <- sub(pattern, "\\1", full, perl = TRUE)
+    replacement <- render_bmatrix_html(content)
+    regmatches(x, match) <- replacement
+  }
+  x
+}
+
+render_latex_with_matrices <- function(x) {
+  pattern <- "\\\\begin\\{bmatrix\\}(.+?)\\\\end\\{bmatrix\\}"
+  out <- character()
+  rest <- x
+  repeat {
+    match <- regexpr(pattern, rest, perl = TRUE)
+    if (match[[1]] < 0) {
+      out <- c(out, render_latex_piece(rest))
+      break
+    }
+    start <- match[[1]]
+    end <- start + attr(match, "match.length") - 1
+    before <- substr(rest, 1, start - 1)
+    full <- substr(rest, start, end)
+    content <- sub(pattern, "\\1", full, perl = TRUE)
+    out <- c(out, render_latex_piece(before), render_bmatrix_html(content))
+    rest <- substr(rest, end + 1, nchar(rest))
+  }
+  paste(out, collapse = "")
+}
+
+equation_html <- function(latex) {
+  parts <- unlist(lapply(latex, function(item) {
+    if (grepl("\\\\begin\\{bmatrix\\}", item)) return(item)
+    strsplit(item, "\\\\\\\\", perl = TRUE)[[1]]
+  }), use.names = FALSE)
+  parts <- parts[nzchar(trimws(parts))]
+  rendered <- vapply(parts, function(part) {
+    render_latex_with_matrices(part)
+  }, character(1))
+  paste0("<div class='equation-rendered'>", paste(sprintf("<div class='equation-line'>%s</div>", rendered), collapse = ""), "</div>")
+}
+
 raw_latex_bundle <- function(result) {
   eq <- mlm_latex_equations(result)
   paste(
@@ -1215,13 +2180,18 @@ raw_latex_bundle <- function(result) {
   )
 }
 
-manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa", maxfun = 30000) {
+manuscript_report_markdown <- function(result, REML = NULL, optimizer = NULL, maxfun = NULL) {
+  settings <- result_settings(result, REML, optimizer, maxfun)
+  REML <- settings$REML
+  optimizer <- settings$optimizer
+  maxfun <- settings$maxfun
   summary <- model_summary_cards(result, optimizer)
   diagnostics <- mlm_diagnostics(result$fit)
   fixed <- apa_fixed_table(result$fit)
   variance <- variance_table(result$fit)
   icc <- icc_table(result$fit)
   software <- mlm_software_table()
+  reproducibility <- mlm_reproducibility_check(result, REML = REML, optimizer = optimizer, maxfun = maxfun)
   eq <- mlm_latex_equations(result)
   table_md <- function(tab) {
     if (!nrow(tab)) return("_No rows available._")
@@ -1240,6 +2210,16 @@ manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa"
     "# Model Summary",
     "",
     table_md(summary),
+    "",
+    "# Publication Readiness",
+    "",
+    "## Methods Text",
+    "",
+    mlm_methods_text(result, REML = REML, optimizer = optimizer, maxfun = maxfun),
+    "",
+    "## Reproducibility Checklist",
+    "",
+    table_md(reproducibility),
     "",
     "# Results Write-Up",
     "",
@@ -1285,6 +2265,12 @@ manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa"
     "",
     paste(sprintf("$$\n%s\n$$", eq$tau), collapse = "\n\n"),
     "",
+    "## Coefficient Key",
+    "",
+    eq$note,
+    "",
+    table_md(equation_key_table(result)),
+    "",
     "# Diagnostics",
     "",
     table_md(diagnostics),
@@ -1303,14 +2289,18 @@ manuscript_report_markdown <- function(result, REML = TRUE, optimizer = "bobyqa"
   )
 }
 
-apa_fixed_html <- function(fit, table_number = 1, title = "Fixed Effects From the Multilevel Model") {
-  tab <- apa_fixed_table(fit)
+apa_fixed_html <- function(fit, table_number = 1, title = "Fixed Effects From the Multilevel Model", exponentiate = FALSE) {
+  tab <- apa_fixed_table(fit, exponentiate = exponentiate)
   apa_html_table(
     tab,
     table_number = table_number,
     title = title,
-    note = "Confidence intervals are Wald 95% intervals. For Gaussian mixed models fit with <code>lme4</code>, p values are large-sample normal approximations and should be interpreted cautiously.",
-    italic_columns = c("b", "SE", "z/t", "p")
+    note = html_escape(paste(
+      "Confidence intervals are Wald 95% intervals.",
+      fixed_effects_note(fit),
+      if (ncol(tab) > 6) sprintf("%s = exponentiated coefficient, with its interval obtained by exponentiating the Wald limits.", names(tab)[[7]])
+    )),
+    italic_columns = c("b", "SE", "p")
   )
 }
 
@@ -1350,11 +2340,11 @@ apa_icc_html <- function(fit, table_number = 4, title = "Intraclass Correlations
     tab,
     table_number = table_number,
     title = title,
-    note = "ICCs represent the proportion of model-implied variance attributable to each grouping level."
+    note = html_escape(icc_note(fit))
   )
 }
 
-apa_tables_html_document <- function(result) {
+apa_tables_html_document <- function(result, exponentiate = FALSE) {
   paste0(
     "<!doctype html><html><head><meta charset='utf-8'><title>mlmr APA Tables</title>",
     "<style>",
@@ -1364,7 +2354,7 @@ apa_tables_html_document <- function(result) {
     ".apa-table thead{border-bottom:1px solid currentColor;}.apa-table th,.apa-table td{padding:6px 8px;border:none;vertical-align:top;text-align:right;}",
     ".apa-table th:first-child,.apa-table td:first-child{text-align:left;}.apa-table th{font-weight:normal;}.apa-table-note{margin-top:8px;}",
     "</style></head><body>",
-    apa_fixed_html(result$fit),
+    apa_fixed_html(result$fit, exponentiate = exponentiate),
     apa_dummy_html(result$data, names(result$spec$fixed)),
     apa_variance_html(result$fit),
     apa_icc_html(result$fit),
@@ -1373,11 +2363,11 @@ apa_tables_html_document <- function(result) {
   )
 }
 
-apa_tables_latex_document <- function(result) {
+apa_tables_latex_document <- function(result, exponentiate = FALSE) {
   paste(
     "% mlmr APA manuscript tables",
     "% Recommended preamble: \\usepackage{graphicx}",
-    paste(apa_fixed_latex(result$fit), collapse = "\n"),
+    paste(apa_fixed_latex(result$fit, exponentiate = exponentiate), collapse = "\n"),
     "",
     paste(apa_dummy_latex(result$data, names(result$spec$fixed)), collapse = "\n"),
     "",
@@ -1390,16 +2380,16 @@ apa_tables_latex_document <- function(result) {
   )
 }
 
-mlm_apa_tables <- function(result, format = c("list", "html", "latex")) {
+mlm_apa_tables <- function(result, format = c("list", "html", "latex"), exponentiate = FALSE) {
   format <- match.arg(format)
   if (identical(format, "html")) {
-    return(apa_tables_html_document(result))
+    return(apa_tables_html_document(result, exponentiate = exponentiate))
   }
   if (identical(format, "latex")) {
-    return(apa_tables_latex_document(result))
+    return(apa_tables_latex_document(result, exponentiate = exponentiate))
   }
   list(
-    fixed_effects = apa_fixed_table(result$fit),
+    fixed_effects = apa_fixed_table(result$fit, exponentiate = exponentiate),
     dummy_coding = dummy_coding_table(result$data, names(result$spec$fixed)),
     variance_components = variance_table(result$fit),
     icc = icc_table(result$fit),
@@ -1468,16 +2458,113 @@ model_writeup <- function(result) {
   icc_text <- if (nrow(icc)) {
     paste(sprintf("%s ICC = %.3f", icc$group, icc$icc), collapse = "; ")
   } else {
-    "ICC values were not available for this model."
+    icc_note(fit)
+  }
+  model_text <- if (identical(spec$distribution, "gaussian")) {
+    sprintf("A Gaussian multilevel linear model was estimated for %s using %s. The fitted model was specified as: %s.", outcome, if (isTRUE(lme4::getME(fit, "devcomp")$dims[["REML"]])) "restricted maximum likelihood" else "maximum likelihood", formula_text)
+  } else {
+    sprintf("A %s generalized mixed-effects model with a %s link was estimated for %s using maximum likelihood. The fitted model was specified as: %s.", spec$distribution, spec$link, outcome, formula_text)
   }
   paste(
-    sprintf("A multilevel linear model was estimated for %s using restricted maximum likelihood unless ML was selected in the estimation panel. The fitted model was specified as: %s.", outcome, formula_text),
+    model_text,
     sprintf("The model included fixed effects for %s and random effects for %s. Random slope variation was estimated for %s, allowing the corresponding Level-1 associations to vary across higher-level units.", paste(names(spec$fixed), collapse = ", "), paste(groups, collapse = ", "), if (length(random_slopes)) paste(random_slopes, collapse = ", ") else "no predictors"),
-    sprintf("The fixed-effect results indicated the following statistically detectable associations: %s.", sig_text),
-    sprintf("Variance partitioning suggested the following clustering structure: %s. These ICC values quantify the proportion of model-implied residual variance attributable to each grouping level, conditional on the random-effects structure.", icc_text),
+    sprintf("The fixed-effect results indicated the following statistically detectable associations: %s. %s", sig_text, fixed_effects_note(fit)),
+    sprintf("Variance partitioning suggested the following clustering structure: %s", icc_text),
     sprintf("Model diagnostics reported: %s. Singularity or convergence warnings should be interpreted as evidence that the specified random-effects structure may be too complex for the available data or may require alternative centering, simplification, or optimizer settings.", paste(sprintf("%s = %s", diag$check, diag$value), collapse = "; ")),
     "Substantively, the model separates within-unit predictors from higher-level contextual predictors while estimating heterogeneity in selected slopes. This is the central advantage of the multilevel specification over a single-level regression: it permits the average association, the between-group variance, and the group-to-group variation in key effects to be evaluated within one coherent model.",
     sep = "\n\n"
+  )
+}
+
+mlm_reproducibility_check <- function(result, REML = NULL, optimizer = NULL, maxfun = NULL) {
+  settings <- result_settings(result, REML, optimizer, maxfun)
+  REML <- settings$REML
+  optimizer <- settings$optimizer
+  maxfun <- settings$maxfun
+  spec <- result$spec
+  diag <- mlm_diagnostics(result$fit)
+  vars <- model_variables(spec)
+  vars <- vars[vars %in% names(result$data)]
+  complete_rows <- if (length(vars)) {
+    sum(stats::complete.cases(result$data[, vars, drop = FALSE]))
+  } else {
+    nrow(result$data)
+  }
+  random_slopes <- unique(unlist(lapply(spec$random, function(x) x$slopes %||% character())))
+  singular <- diag$value[diag$check == "Singular fit"]
+  convergence <- diag$value[diag$check == "Convergence messages"]
+  centering <- vapply(spec$fixed, function(x) x$center %||% "none", character(1))
+  add <- function(status, item, evidence, next_step = "") {
+    data.frame(
+      Status = status,
+      Item = item,
+      Evidence = evidence,
+      `Suggested Review` = next_step,
+      stringsAsFactors = FALSE,
+      check.names = FALSE
+    )
+  }
+  rows <- list(
+    add("OK", "Model formula captured", paste(deparse(result$formula, width.cutoff = 500), collapse = " "), "Confirm the formula matches the research question before publication."),
+    add("OK", "Data footprint captured", sprintf("%s rows in fitted data; %s complete rows on selected model variables.", nrow(result$data), complete_rows), "Archive the raw data source and any cleaning script outside the app export."),
+    add("OK", "Estimator settings captured", sprintf("Distribution: %s; link: %s; REML: %s; optimizer: %s; maxfun: %s.", spec$distribution, spec$link, REML, optimizer, maxfun), "Use ML rather than REML for nested fixed-effect comparisons."),
+    add(if (length(centering) && any(centering != "none")) "OK" else "Review", "Centering decisions captured", if (length(centering)) paste(sprintf("%s = %s", names(centering), centering), collapse = "; ") else "No fixed predictors selected.", "Confirm centering choices match within-, between-, or contextual-effect claims."),
+    add("OK", "Random-effects structure captured", sprintf("Groups: %s; random slopes: %s.", paste(names(spec$random), collapse = ", "), if (length(random_slopes)) paste(random_slopes, collapse = ", ") else "none"), "Report simplification decisions if convergence or singularity occurs."),
+    add(if (identical(singular, "TRUE")) "Review" else "OK", "Singular-fit check", singular, "If TRUE, consider a simpler random-effects structure or explain why the boundary estimate is acceptable."),
+    add(if (length(convergence) && !identical(convergence, "None reported")) "Review" else "OK", "Convergence messages", convergence, "Resolve convergence warnings before treating the model as final."),
+    add("Review", "Inference labels reviewed", fixed_effects_note(result$fit), "Use denominator-df, bootstrap, profile-likelihood, or journal-preferred methods when confirmatory inference requires them."),
+    add(if (is_gaussian_fit(result$fit)) "OK" else "Review", "ICC reporting reviewed", icc_note(result$fit), "For GLMMs, report a family-specific ICC only after selecting and documenting an appropriate scale."),
+    add("OK", "Tables and equations generated", "APA tables, variance components, equations, LaTeX, and Quarto/R exports are available. ICCs are produced for Gaussian mixed models only.", "Check labels, reference categories, notation, and journal formatting manually."),
+    add("OK", "Software versions captured", paste(sprintf("%s %s", mlm_software_table()$Software, mlm_software_table()$Version), collapse = "; "), "Include the software table or APA software statement in supplementary materials.")
+  )
+  out <- do.call(rbind, rows)
+  row.names(out) <- NULL
+  out
+}
+
+mlm_methods_text <- function(result, REML = NULL, optimizer = NULL, maxfun = NULL) {
+  settings <- result_settings(result, REML, optimizer, maxfun)
+  REML <- settings$REML
+  optimizer <- settings$optimizer
+  maxfun <- settings$maxfun
+  spec <- result$spec
+  formula_text <- paste(deparse(result$formula, width.cutoff = 500), collapse = " ")
+  groups <- names(spec$random)
+  random_slopes <- unique(unlist(lapply(spec$random, function(x) x$slopes %||% character())))
+  fixed_terms <- names(spec$fixed)
+  centering <- vapply(spec$fixed, function(x) x$center %||% "none", character(1))
+  centered_terms <- centering[centering != "none"]
+  distribution_text <- if (identical(spec$distribution, "gaussian")) {
+    "Gaussian linear mixed-effects model"
+  } else {
+    sprintf("%s generalized mixed-effects model with a %s link", spec$distribution, spec$link)
+  }
+  estimator <- if (identical(spec$distribution, "gaussian")) {
+    if (isTRUE(REML)) "restricted maximum likelihood" else "maximum likelihood"
+  } else {
+    "maximum likelihood"
+  }
+  paste(
+    sprintf("We estimated a %s for %s using %s in lme4. The fitted formula was %s.", distribution_text, spec$outcome, estimator, formula_text),
+    sprintf("The model included fixed effects for %s and random-effect blocks for %s. Random slopes were estimated for %s.", if (length(fixed_terms)) paste(fixed_terms, collapse = ", ") else "the intercept only", if (length(groups)) paste(groups, collapse = ", ") else "no grouping factors", if (length(random_slopes)) paste(random_slopes, collapse = ", ") else "no predictors"),
+    sprintf("Centering choices were recorded as follows: %s.", if (length(centered_terms)) paste(sprintf("%s was %s centered", names(centered_terms), centered_terms), collapse = "; ") else "no selected predictors were centered"),
+    fixed_effects_note(result$fit),
+    icc_note(result$fit),
+    sprintf("The analysis used optimizer %s with a maximum of %s function evaluations. Reproducible R code, model diagnostics, APA-style tables, equations, LaTeX output, and software version information were exported from mlmr.", optimizer, maxfun),
+    mlm_software_apa(),
+    sep = "\n\n"
+  )
+}
+
+mlm_publication_bundle <- function(result, REML = NULL, optimizer = NULL, maxfun = NULL) {
+  list(
+    methods_text = mlm_methods_text(result, REML = REML, optimizer = optimizer, maxfun = maxfun),
+    reproducibility_check = mlm_reproducibility_check(result, REML = REML, optimizer = optimizer, maxfun = maxfun),
+    software_statement = mlm_software_apa(),
+    formula = paste(deparse(result$formula, width.cutoff = 500), collapse = " "),
+    apa_tables = mlm_apa_tables(result),
+    equations = mlm_latex_equations(result),
+    reproducible_code = generate_repro_code(result, REML = REML, optimizer = optimizer, maxfun = maxfun)
   )
 }
 
@@ -1546,8 +2633,13 @@ fit_code_lines <- function(spec, formula_text, REML, optimizer, maxfun) {
   )
 }
 
-generate_repro_code <- function(result, REML, optimizer, maxfun) {
+generate_repro_code <- function(result, REML = NULL, optimizer = NULL, maxfun = NULL) {
+  settings <- result_settings(result, REML, optimizer, maxfun)
+  REML <- settings$REML
+  optimizer <- settings$optimizer
+  maxfun <- settings$maxfun
   spec <- result$spec
+  model_vars <- intersect(model_variables(spec), names(result$data))
   latex <- mlm_latex_equations(result)
   formula_text <- paste(deparse(result$formula, width.cutoff = 500), collapse = " ")
   factor_terms <- intersect(names(spec$fixed), factor_vars(result$data))
@@ -1564,8 +2656,15 @@ generate_repro_code <- function(result, REML, optimizer, maxfun) {
     sprintf("# Grouping factors: %s", paste(unlist(spec$grouping, use.names = FALSE), collapse = ", ")),
     sprintf("# Structure note: %s", spec$nesting %||% ""),
     "",
+    section("Analysis Sample"),
+    "# `dat` must hold the data used in mlmr. Rows with missing values on any",
+    "# model variable are dropped first, so centering uses the same rows as the model.",
+    sprintf("model_vars <- c(%s)", paste(sprintf("\"%s\"", model_vars), collapse = ", ")),
+    "dat_full <- dat",
+    "dat <- dat_full[complete.cases(dat_full[, model_vars, drop = FALSE]), , drop = FALSE]",
+    "",
     section("Center Predictors"),
-    "# Center predictors as requested in the app.",
+    if (length(result$centering_code)) "# Center predictors as requested in mlmr." else "# No predictors were centered.",
     result$centering_code,
     "",
     section("Fit Multilevel Model"),
@@ -1666,7 +2765,7 @@ generate_repro_code <- function(result, REML, optimizer, maxfun) {
     paste0("  \"", gsub("\\", "\\\\", latex$tau, fixed = TRUE), "\"", collapse = ",\n"),
     ")",
     "",
-    imputation_repro_code(spec, result$formula)
+    imputation_repro_code(spec, result$formula, data_name = "dat_full")
   )
 }
 

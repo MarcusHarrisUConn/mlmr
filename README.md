@@ -14,6 +14,11 @@ structure, centering decisions, fixed effects, random effects, and interactions
 to APA-style tables, level-by-level equations, combined equations, Tau
 variance-covariance displays, diagnostics, and reproducible exports.
 
+Gaussian linear mixed models are the primary production workflow. GLMM presets
+are available as advanced workflows with visible link-scale, Wald-inference, and
+family-specific ICC cautions so polished output is not mistaken for automatic
+publishable inference.
+
 ## Why Use mlmr?
 
 Many researchers learn multilevel modeling through level-based software
@@ -57,8 +62,11 @@ Screenshots and a visual walkthrough are available on the documentation site:
 - Built-in HSB-style example data with preset model choices
 - Upload support for CSV, TSV/TXT, Excel, SPSS, SAS, and Stata files
 - Model-readiness checks before fitting custom models
-- APA-style fixed-effects, variance components, ICC, and dummy-coding tables
-- Level-by-level equations, combined equations, and Tau matrix displays
+- APA-style fixed-effects, variance components, Gaussian ICC, and dummy-coding tables
+- Level-by-level equations, combined equations, and Tau matrix displays, with
+  predictors placed at the level where they vary and a key linking each symbol
+  to its estimate
+- Odds ratios and incidence rate ratios for logistic and count models
 - Diagnostics, model comparison tools, and convergence guidance
 - Reproducible R code, Quarto report, HTML, Word-compatible, and LaTeX exports
 
@@ -153,11 +161,15 @@ To inspect the current production scope from R:
 
 ```r
 mlmr::mlm_supported_models()
+mlmr::mlm_hlm8_parity()
+mlmr::mlm_validation_benchmarks()
+mlmr::mlm_validation_report()
 ```
 
-This returns a table describing supported, experimental, and planned modeling
-areas, along with the checks users remain responsible for before treating a
-model as final.
+These helpers describe supported, experimental, and planned modeling areas;
+track progress toward HLM-style feature parity; and provide deterministic
+benchmark model templates with expected formulas, optional fit validation, and
+reviewer-facing fitted-output summaries.
 
 For APA manuscript workflows that use `papaja`, `mlmr` also generates optional
 code using `papaja::r_refs()` and `papaja::cite_r()`:
@@ -187,6 +199,7 @@ The package includes vignettes for getting started and for equations/reporting:
 vignette("getting-started", package = "mlmr")
 vignette("supported-models", package = "mlmr")
 vignette("equations-and-reporting", package = "mlmr")
+vignette("hlm-parity-and-validation", package = "mlmr")
 ```
 
 The public package documentation site is:

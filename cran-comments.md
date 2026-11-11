@@ -1,10 +1,12 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 1 note
+0 errors | 0 warnings | 1 expected note on full CI environments
+0 errors | 0 warnings | 2 notes on local macOS
 
 ## Test environments
 
 - Local Windows 11, R 4.5.1
+- Local macOS Tahoe 26.5.1, R 4.6.1
 - GitHub Actions, Windows latest, R release
 - GitHub Actions, macOS latest, R release
 - GitHub Actions, Ubuntu latest, R release
@@ -14,6 +16,9 @@
 
 - CRAN incoming reports "New submission"; this is expected for the first CRAN
   submission.
+- The local macOS check also reports that HTML validation was skipped because
+  the available `tidy` executable is not recent enough. This is a local
+  toolchain note and is not present on the full CI check matrix.
 
 ## Downstream dependencies
 

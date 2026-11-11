@@ -220,6 +220,95 @@ pre {
   color: var(--mlmr-navy);
 }
 
+.equation-latex {
+  background: #f9f5ec;
+  font-size: 0.95rem;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.equation-rendered {
+  display: grid;
+  gap: 0.65rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.15rem;
+  line-height: 1.65;
+  color: #182d3a;
+}
+
+.equation-line {
+  white-space: nowrap;
+  overflow-x: auto;
+  padding: 0.3rem 0;
+}
+
+.equation-rendered sub {
+  font-size: 0.68em;
+  line-height: 0;
+  vertical-align: -0.35em;
+}
+
+.eq-var {
+  font-style: italic;
+}
+
+.eq-text {
+  margin-left: 0.35rem;
+  font-family: var(--bs-body-font-family);
+  font-size: 0.92rem;
+}
+
+.eq-op {
+  display: inline-block;
+  margin: 0 0.25rem;
+}
+
+.eq-matrix {
+  display: table;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  border-collapse: collapse;
+  vertical-align: middle;
+  font-size: 0.92em;
+}
+
+.eq-matrix td {
+  padding: 0.3rem 0.65rem;
+  border: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.eq-matrix-frame {
+  display: inline-block;
+  position: relative;
+  margin: 0.25rem 0.45rem;
+  padding: 0.15rem 0.3rem;
+  vertical-align: middle;
+}
+
+.eq-matrix-frame::before,
+.eq-matrix-frame::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.4rem;
+  border-top: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.eq-matrix-frame::before {
+  left: 0;
+  border-left: 2px solid currentColor;
+}
+
+.eq-matrix-frame::after {
+  right: 0;
+  border-right: 2px solid currentColor;
+}
+
 .equation-card mjx-container[display="true"] {
   margin: 0.35em 0;
   text-align: left !important;

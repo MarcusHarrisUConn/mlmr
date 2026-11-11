@@ -6,6 +6,13 @@ classroom/manuscript-ready production release.
 
 ## Public Beta Priorities
 
+- Maintain an HLM 8 parity checklist through `mlm_hlm8_parity()` so users can
+  see which HLM-style workflows are supported, experimental, planned, or out of
+  scope.
+- Expand `mlm_validation_benchmarks()` and `mlm_validation_report()` beyond the
+  current expected formula, AIC, fitted-output, and diagnostic summaries into a
+  gold-standard validation suite with stored reference estimates, standard
+  errors, variance components, ICCs, and exported-code checks.
 - Continue hardening formula generation for nested, crossed, longitudinal, and
   GLMM designs.
 - Expand validation messages for uploaded data, selected variables, grouping
@@ -29,6 +36,8 @@ classroom/manuscript-ready production release.
 ## Reporting Features
 
 - Improve manuscript-ready Quarto report export.
+- Expand the publication bundle with one-click archive output and reviewer-
+  facing reproducibility appendices.
 - Add copy-ready APA table exports for Word, HTML, and LaTeX.
 - Add clearer equation annotations for fixed effects, random effects, and Tau
   matrix parameters.
@@ -42,3 +51,13 @@ classroom/manuscript-ready production release.
 - Run `R CMD check --as-cran` locally and on Windows, macOS, Linux, and R-devel.
 - Confirm all vignettes are lightweight enough for CRAN checks.
 - Confirm an installed-package smoke test launches `mlmr::run_mlmr()`.
+
+## Software Paper Preparation
+
+- Keep the draft paper in `paper/` excluded from the CRAN source package.
+- Frame the statement of need around a free, reproducible, GUI-first
+  alternative to expensive HLM-style software.
+- Add a case study showing how a student moves from data to model equations,
+  APA tables, diagnostics, reproducible R code, and a manuscript appendix.
+- Before submission, document validation evidence from
+  `mlm_validation_benchmarks()` and public beta feedback.

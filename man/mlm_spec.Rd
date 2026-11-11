@@ -1,11 +1,14 @@
 \name{mlm_spec}
 \alias{mlm_spec}
+\alias{print.mlm_spec}
 \title{Create a Multilevel Model Specification}
 \usage{
 mlm_spec(outcome, distribution = "gaussian", link = "identity",
   fixed = list(), grouping = list(), nesting = NULL, structure = "nested",
   random = list(), interactions = list(), predictor_levels = list(),
   data = NULL)
+
+\method{print}{mlm_spec}(x, ...)
 }
 \arguments{
 \item{outcome}{Character string giving the name of the outcome variable in
@@ -17,7 +20,10 @@ mlm_spec(outcome, distribution = "gaussian", link = "identity",
 default \code{"identity"} link is used.}
 \item{fixed}{Named list of fixed predictors. Each entry may include a
 \code{center} value: \code{"none"}, \code{"GMC"} for grand-mean centering, or
-\code{"CWC"} for cluster-mean centering.}
+\code{"CWC"} for cluster-mean centering. Only numeric predictors can be
+centered. Cluster-mean centering uses the first grouping factor unless the
+entry names another one with \code{group}, for example
+\code{list(center = "CWC", group = "districtid")}.}
 \item{grouping}{Named list mapping conceptual grouping names to data columns.
 For example, \code{list(schoolid = "schoolid")} or
 \code{list(schoolid = "schoolid", districtid = "districtid")}.}
@@ -35,6 +41,8 @@ for example \code{list(c("ses", "sector"))}.}
 levels, such as \code{list(level1 = c("ses"), level2 = c("meanses"))}. This is
 used for app display and reporting.}
 \item{data}{Data frame used to fit the model.}
+\item{x}{An \code{"mlm_spec"} object.}
+\item{...}{Ignored.}
 }
 \description{
 Creates a structured model specification used by \code{\link{mlm_formula}},
@@ -48,6 +56,15 @@ be passed to \code{\link{mlm_formula}} or \code{\link{mlm_fit}}.
 \code{mlm_spec()} records the modeling choices made in the app or in code. It
 does not fit the model by itself. Centered variables are created during
 \code{\link{mlm_fit}} and are reflected in the generated \pkg{lme4} formula.
+
+Variable names that are not syntactic R names (for example names containing
+spaces) are quoted automatically in the generated formula.
+
+\code{mlm_spec()} checks that the selected variables exist in \code{data}.
+Problems that only matter at fitting time, such as centering a categorical
+predictor, requesting a random slope for a variable that is not a fixed
+predictor, or specifying no random effects, are reported by
+\code{\link{mlm_fit}} with a message describing how to fix them.
 
 Users are responsible for confirming that grouping IDs, predictor levels,
 centering decisions, interactions, and random effects match the research design.

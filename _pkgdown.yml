@@ -34,6 +34,8 @@ navbar:
         href: articles/supported-models.html
       - text: Equations and reporting
         href: articles/equations-and-reporting.html
+      - text: HLM-style parity and validation
+        href: articles/hlm-parity-and-validation.html
 
 home:
   title: mlmr
@@ -54,10 +56,18 @@ reference:
   - mlm_spec
   - mlm_formula
   - mlm_fit
+- title: Scope and validation
+  contents:
   - mlm_supported_models
+  - mlm_hlm8_parity
+  - mlm_validation_benchmarks
+  - mlm_validation_report
 - title: Report models
   contents:
   - mlm_apa_tables
+  - mlm_publication_bundle
+  - mlm_methods_text
+  - mlm_reproducibility_check
   - mlm_software_table
   - mlm_papaja_code
 
@@ -68,3 +78,4 @@ articles:
   - getting-started
   - supported-models
   - equations-and-reporting
+  - hlm-parity-and-validation

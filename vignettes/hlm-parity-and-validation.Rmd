@@ -1,0 +1,132 @@
+---
+title: "HLM-Style Parity and Validation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{HLM-Style Parity and Validation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  eval = FALSE
+)
+```
+
+## Purpose
+
+`mlmr` is intended to provide a free, reproducible, HLM-style graphical
+workflow for multilevel modeling in R. That goal requires more than a friendly
+interface: users, instructors, reviewers, and CRAN maintainers should be able
+to see what the package supports and how core workflows are validated.
+
+This vignette describes the package's HLM-style parity tracker and validation
+benchmarks.
+
+## HLM-Style Feature Parity
+
+The app is not a clone of commercial HLM software. Instead, it is a guided R
+workflow that covers the core teaching and publication tasks many HLM users
+expect:
+
+- unconditional/null models;
+- random-intercept models;
+- random-slope models;
+- cross-level interactions;
+- two-level and three-level nested models;
+- centering decisions;
+- variance components and ICCs;
+- equation displays;
+- diagnostics;
+- publication tables;
+- reproducible syntax export.
+
+The current parity table can be inspected from R:
+
+```{r parity}
+mlmr::mlm_hlm8_parity()
+```
+
+The same table appears in the Shiny app on the **About** tab. The table labels
+features as supported, experimental, planned, or out of current scope so users
+do not mistake roadmap items for production features.
+
+## Validation Benchmarks
+
+`mlmr` includes deterministic benchmark models that exercise the core
+HLM-style workflows. These benchmarks are designed to protect the package from
+regressions as the GUI and backend continue to evolve.
+
+```{r benchmarks}
+mlmr::mlm_validation_benchmarks()
+```
+
+The benchmark suite currently covers:
+
+- a null model;
+- a random-intercept model;
+- a random-slope model;
+- a cross-level interaction model;
+- a three-level model.
+
+By default, the helper checks expected formulas and model-readiness status
+without fitting models. This keeps examples light enough for routine
+documentation use.
+
+## Fitted Benchmark Validation
+
+When `run = TRUE`, the helper fits the benchmark models and compares fitted
+AIC values with deterministic reference values:
+
+```{r fit-benchmarks}
+mlmr::mlm_validation_benchmarks(run = TRUE)
+```
+
+Small numerical differences can occur across R, `lme4`, BLAS/LAPACK, or
+operating-system versions. The `tolerance` argument controls the acceptable
+absolute AIC difference.
+
+## Reviewer-Facing Validation Report
+
+For CRAN review, software-paper review, or teaching documentation, the package
+can generate a fuller validation report:
+
+```{r validation-report}
+report <- mlmr::mlm_validation_report()
+names(report)
+```
+
+The report includes:
+
+- benchmark formulas and AIC validation status;
+- fixed effects for each benchmark model;
+- variance components;
+- intraclass correlations;
+- diagnostics and convergence checks.
+
+The Shiny app exposes the same evidence through the **About** tab:
+
+1. open **About**;
+2. review **HLM-Style Feature Parity**;
+3. click **Run Fit Validation**;
+4. download the **Validation Report**.
+
+## How to Interpret Validation
+
+Validation evidence does not mean every applied model is automatically correct,
+and it does not yet constitute independent equivalence testing against HLM,
+textbook examples, or published benchmark data. It means the software's core
+model-building, equation, diagnostic, and export pathways are being checked
+against deterministic examples.
+
+For a peer-reviewed software paper, the benchmark suite should be extended with
+stored reference estimates, standard errors, variance components, ICCs, and
+diagnostic expectations from independent examples. Until then, the validation
+helpers should be described as regression tests and reviewer-facing transparency,
+not as proof that every supported model family has been independently validated.
+
+Users remain responsible for deciding whether their design, sample size,
+missing-data strategy, centering choices, random-effects structure, and
+interpretation are appropriate for their research question.

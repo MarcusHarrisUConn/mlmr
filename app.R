@@ -30,7 +30,6 @@ ui <- page_navbar(
   theme = theme,
   header = tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
-    tags$script(src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"),
     tags$script(HTML("
       function copyOutputText(id) {
         const el = document.getElementById(id);
@@ -227,6 +226,7 @@ ui <- page_navbar(
         tabPanel(
           "Tables",
           br(),
+          uiOutput("inference_notice"),
           layout_columns(
             col_widths = c(6, 6),
             card(card_header("APA Fixed Effects Table"), uiOutput("apa_table_html")),
@@ -239,9 +239,10 @@ ui <- page_navbar(
         tabPanel(
           "Equations",
           br(),
-          card(card_header("Level-by-Level Equations"), uiOutput("latex_equations_results")),
+          card(card_header("Level-by-Level Equations"), uiOutput("latex_equations_results"), uiOutput("equation_note_results")),
           card(card_header("Combined Full Equation"), uiOutput("combined_equation_results")),
           card(card_header("Tau Variance-Covariance Structure"), uiOutput("tau_equations_results"), div(class = "scroll-table", tableOutput("tau_label_table_results"))),
+          card(card_header("Coefficient Key"), p(class = "mode-note", "Each symbol in the equations matched to its row in the fixed-effects table."), div(class = "scroll-table", tableOutput("equation_key_results"))),
           card(card_header("Raw LaTeX"), verbatimTextOutput("raw_latex_results"))
         ),
         tabPanel(
@@ -293,6 +294,20 @@ ui <- page_navbar(
         card_header("Quarto Report"),
         p("Download a Quarto-ready report with the model summary, tables, equations, diagnostics, R code, and LaTeX."),
         downloadButton("download_report", "Download .qmd Report")
+      ),
+      layout_columns(
+        col_widths = c(6, 6),
+        card(
+          card_header("Publication Readiness Checklist"),
+          p("Use this before sharing a manuscript, preregistration, thesis appendix, or reproducibility supplement."),
+          div(class = "scroll-table", tableOutput("publication_checklist")),
+          downloadButton("download_publication_bundle", "Download Bundle")
+        ),
+        card(
+          card_header("Methods Text"),
+          p("Review and adapt this language for the target journal, course assignment, or supplemental materials."),
+          verbatimTextOutput("methods_text")
+        )
       ),
       card(
         full_screen = TRUE,
@@ -352,6 +367,18 @@ ui <- page_navbar(
           tags$li(tags$a("Creator: Marcus Harris, PhD", href = "https://marcusharrisphd.com", target = "_blank", rel = "noopener noreferrer"))
         )
       ),
+      card(
+        card_header("HLM-Style Feature Parity"),
+        p("This table tracks the goal of replacing expensive HLM-style workflows with a free, transparent R interface."),
+        div(class = "scroll-table", tableOutput("hlm8_parity_table"))
+      ),
+      card(
+        card_header("Validation Benchmarks"),
+        p("These deterministic model templates are used as validation targets for formulas, readiness checks, and fitted-output tests."),
+        actionButton("run_benchmark_validation", "Run Fit Validation", class = "btn-outline-primary"),
+        downloadButton("download_validation_report", "Download Validation Report"),
+        div(class = "scroll-table", tableOutput("validation_benchmarks_table"))
+      ),
       layout_columns(
         col_widths = c(6, 6),
         card(
@@ -393,6 +420,7 @@ ui <- page_navbar(
 server <- function(input, output, session) {
   fit_state <- reactiveVal(list(result = NULL, error = NULL, optimizer = NULL))
   model_history <- reactiveVal(list())
+  benchmark_validation_run <- reactiveVal(FALSE)
 
   read_uploaded_data <- function(file_info) {
     ext <- tolower(tools::file_ext(file_info$name))
@@ -465,6 +493,49 @@ server <- function(input, output, session) {
       div(class = "mode-badge standard", strong("HLM Mode"), span(" Nested Gaussian HLM workflow with centering, equations, APA tables, and reproducible lme4 code."))
     }
   })
+
+  output$hlm8_parity_table <- renderTable({
+    mlm_hlm8_parity()
+  }, striped = TRUE, bordered = TRUE)
+
+  output$validation_benchmarks_table <- renderTable({
+    withProgress(message = "Preparing validation benchmarks", value = 0.25, {
+      mlm_validation_benchmarks(run = isTRUE(benchmark_validation_run()))
+    })
+  }, striped = TRUE, bordered = TRUE)
+
+  observeEvent(input$run_benchmark_validation, {
+    benchmark_validation_run(TRUE)
+    showNotification("Benchmark fit validation complete.", type = "message")
+  })
+
+  validation_report_text <- function(report) {
+    table_text <- function(title, tab) {
+      if (!is.data.frame(tab) || !nrow(tab)) return(c(title, "", "No rows available.", ""))
+      tab[] <- lapply(tab, as.character)
+      c(
+        title,
+        "",
+        paste(names(tab), collapse = " | "),
+        paste(rep("---", ncol(tab)), collapse = " | "),
+        apply(tab, 1, paste, collapse = " | "),
+        ""
+      )
+    }
+    c(
+      "mlmr Validation Report",
+      "",
+      sprintf("Generated: %s", report$generated_at),
+      sprintf("Seed: %s", report$seed),
+      sprintf("Tolerance: %s", report$tolerance),
+      "",
+      table_text("Benchmark Summary", report$benchmarks),
+      table_text("Fixed Effects", report$fixed_effects),
+      table_text("Variance Components", report$variance_components),
+      table_text("Intraclass Correlations", report$icc),
+      table_text("Diagnostics", report$diagnostics)
+    )
+  }
 
   output$model_template_explanation <- renderUI({
     div(class = "template-note", model_template_explanation(input$model_preset %||% "custom"))
@@ -545,6 +616,23 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "level2_terms", selected = level2)
     updateSelectizeInput(session, "level3_terms", selected = level3)
   }
+
+  link_choices <- function(distribution) {
+    switch(
+      distribution %||% "gaussian",
+      gaussian = "identity",
+      binomial = c("logit", "probit"),
+      poisson = "log",
+      `negative binomial` = "log",
+      Gamma = c("log", "inverse"),
+      "identity"
+    )
+  }
+
+  observeEvent(input$distribution, {
+    choices <- link_choices(input$distribution)
+    updateSelectInput(session, "link", choices = choices, selected = first_or(intersect(input$link %||% choices[[1]], choices), choices[[1]]))
+  }, ignoreInit = FALSE)
 
   observeEvent(input$binary_preset, {
     updateSelectInput(session, "outcome", selected = "passmath")
@@ -1040,16 +1128,28 @@ server <- function(input, output, session) {
     res <- active_result()
     if (is.null(res)) return(p("Fit a model to generate equations."))
     eq <- mlm_latex_equations(res)
-    withMathJax(tags$div(class = "equation-stack", lapply(seq_along(eq$level), function(i) {
-      tags$div(class = "equation-card", tags$strong(eq$level[[i]]), tags$div(HTML(latex_display_equation(eq$equations[[i]], terms_per_line = 1))))
-    })))
+    tags$div(class = "equation-stack", lapply(seq_along(eq$level), function(i) {
+      tags$div(class = "equation-card", tags$strong(eq$level[[i]]), HTML(equation_html(eq$equations[[i]])))
+    }))
   })
+
+  output$equation_note_results <- renderUI({
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    div(class = "mode-note", mlm_latex_equations(res)$note)
+  })
+
+  output$equation_key_results <- renderTable({
+    res <- active_result()
+    req(res)
+    equation_key_table(res)
+  }, striped = TRUE, bordered = TRUE)
 
   output$combined_equation_results <- renderUI({
     res <- active_result()
     if (is.null(res)) return(p("Fit a model to generate a combined equation."))
     eq <- mlm_latex_equations(res)
-    withMathJax(tags$div(class = "equation-card", tags$div(HTML(latex_wrapped_equation(eq$combined, terms_per_line = 2)))))
+    tags$div(class = "equation-card", HTML(equation_html(eq$combined)))
   })
 
   output$tau_equations_results <- renderUI({
@@ -1057,11 +1157,11 @@ server <- function(input, output, session) {
     if (is.null(res)) return(NULL)
     eq <- mlm_latex_equations(res)
     if (!length(eq$tau)) return(NULL)
-    withMathJax(tags$div(
+    tags$div(
       class = "equation-stack",
       tags$strong("Tau Variance-Covariance Matrix"),
-      lapply(eq$tau, function(tau) tags$div(class = "equation-card", tags$p(paste0("\\[", tau, "\\]"))))
-    ))
+      lapply(eq$tau, function(tau) tags$div(class = "equation-card", HTML(equation_html(tau))))
+    )
   })
 
   output$tau_label_table_results <- renderTable({
@@ -1096,13 +1196,23 @@ server <- function(input, output, session) {
   output$apa_table <- renderTable({
     res <- active_result()
     req(res)
-    apa_fixed_table(res$fit)
+    apa_fixed_table(res$fit, exponentiate = TRUE)
   }, striped = TRUE, bordered = TRUE)
 
   output$apa_table_html <- renderUI({
     res <- active_result()
     if (is.null(res)) return(p("Fit a model to generate an APA-style table."))
-    HTML(apa_fixed_html(res$fit))
+    HTML(apa_fixed_html(res$fit, exponentiate = TRUE))
+  })
+
+  output$inference_notice <- renderUI({
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    tags$div(
+      class = "mode-badge advanced",
+      tags$strong("Inference Review"),
+      tags$span(paste(" ", fixed_effects_note(res$fit), " ", icc_note(res$fit)))
+    )
   })
 
   output$dummy_table_html <- renderUI({
@@ -1138,7 +1248,7 @@ server <- function(input, output, session) {
   output$apa_latex_table <- renderText({
     res <- active_result()
     if (is.null(res)) return("Fit a model to generate a LaTeX table.")
-    paste(apa_fixed_latex(res$fit), collapse = "\n")
+    paste(apa_fixed_latex(res$fit, exponentiate = TRUE), collapse = "\n")
   })
 
   output$raw_latex_bundle <- renderText({
@@ -1357,6 +1467,26 @@ server <- function(input, output, session) {
     paste(generate_repro_code(res, isTRUE(input$reml), input$optimizer, input$maxfun), collapse = "\n")
   })
 
+  output$publication_checklist <- renderTable({
+    res <- active_result()
+    if (is.null(res)) {
+      return(data.frame(
+        Status = "Waiting",
+        Item = "Fit a model",
+        Evidence = "No fitted model is available yet.",
+        `Suggested Review` = "Go to Estimate and fit a model before preparing publication materials.",
+        check.names = FALSE
+      ))
+    }
+    mlm_reproducibility_check(res, isTRUE(input$reml), input$optimizer, input$maxfun)
+  }, striped = TRUE, bordered = TRUE)
+
+  output$methods_text <- renderText({
+    res <- active_result()
+    if (is.null(res)) return("Fit a model to generate methods text.")
+    mlm_methods_text(res, isTRUE(input$reml), input$optimizer, input$maxfun)
+  })
+
   output$download_r_code <- downloadHandler(
     filename = function() "mlmr_reproducible_analysis.R",
     content = function(file) {
@@ -1396,11 +1526,61 @@ server <- function(input, output, session) {
     }
   )
 
+  output$download_publication_bundle <- downloadHandler(
+    filename = function() "mlmr_publication_bundle.txt",
+    content = function(file) {
+      res <- active_result()
+      if (is.null(res)) {
+        writeLines("Fit a model to generate a publication bundle.", file, useBytes = TRUE)
+        return(invisible(NULL))
+      }
+      bundle <- mlm_publication_bundle(res, isTRUE(input$reml), input$optimizer, input$maxfun)
+      checklist <- bundle$reproducibility_check
+      checklist_lines <- c(
+        paste(names(checklist), collapse = " | "),
+        paste(rep("---", ncol(checklist)), collapse = " | "),
+        apply(checklist, 1, paste, collapse = " | ")
+      )
+      text <- c(
+        "mlmr Publication Bundle",
+        "",
+        "Methods Text",
+        "",
+        bundle$methods_text,
+        "",
+        "Formula",
+        "",
+        bundle$formula,
+        "",
+        "Reproducibility Checklist",
+        "",
+        checklist_lines,
+        "",
+        "Software Statement",
+        "",
+        bundle$software_statement,
+        "",
+        "Reproducible R Code",
+        "",
+        bundle$reproducible_code
+      )
+      writeLines(text, file, useBytes = TRUE)
+    }
+  )
+
+  output$download_validation_report <- downloadHandler(
+    filename = function() "mlmr_validation_report.txt",
+    content = function(file) {
+      report <- mlm_validation_report()
+      writeLines(validation_report_text(report), file, useBytes = TRUE)
+    }
+  )
+
   output$download_tables_html <- downloadHandler(
     filename = function() "mlmr_apa_tables.html",
     content = function(file) {
       res <- active_result()
-      text <- if (is.null(res)) "<p>Fit a model to generate APA tables.</p>" else apa_tables_html_document(res)
+      text <- if (is.null(res)) "<p>Fit a model to generate APA tables.</p>" else apa_tables_html_document(res, exponentiate = TRUE)
       writeLines(text, file, useBytes = TRUE)
     }
   )
@@ -1409,7 +1589,7 @@ server <- function(input, output, session) {
     filename = function() "mlmr_apa_tables.doc",
     content = function(file) {
       res <- active_result()
-      text <- if (is.null(res)) "<p>Fit a model to generate APA tables.</p>" else apa_tables_html_document(res)
+      text <- if (is.null(res)) "<p>Fit a model to generate APA tables.</p>" else apa_tables_html_document(res, exponentiate = TRUE)
       writeLines(text, file, useBytes = TRUE)
     }
   )
@@ -1418,7 +1598,7 @@ server <- function(input, output, session) {
     filename = function() "mlmr_apa_tables.tex",
     content = function(file) {
       res <- active_result()
-      text <- if (is.null(res)) "% Fit a model to generate APA tables." else apa_tables_latex_document(res)
+      text <- if (is.null(res)) "% Fit a model to generate APA tables." else apa_tables_latex_document(res, exponentiate = TRUE)
       writeLines(text, file, useBytes = TRUE)
     }
   )

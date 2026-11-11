@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+message: "If you use mlmr, please cite it using this metadata."
+title: "mlmr: Mixed-Effects and Multilevel Models in R"
+version: "0.1.0"
+date-released: "2026-07-02"
+authors:
+  - family-names: "Harris"
+    given-names: "Marcus"
+repository-code: "https://github.com/MarcusHarrisUConn/mlmr"
+url: "https://marcusharrisphd.com/mlmr/"
+license: "MIT"
+keywords:
+  - "R"
+  - "Shiny"
+  - "multilevel modeling"
+  - "mixed-effects models"
+  - "reproducible research"
+abstract: >-
+  mlmr is an open-source R package and Shiny application for fitting,
+  understanding, and reporting mixed-effects and multilevel models. It provides
+  an HLM-style graphical workflow while preserving transparent lme4 syntax,
+  equations, diagnostics, APA-style tables, and reproducible exports.

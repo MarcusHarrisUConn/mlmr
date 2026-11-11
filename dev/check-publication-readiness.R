@@ -12,26 +12,43 @@ same_file <- function(path_a, path_b) {
 
 stop_if_not(
   same_file("R/mlm_core.R", "inst/app/R/mlm_core.R"),
-  "Backend copy drift detected: R/mlm_core.R and inst/app/R/mlm_core.R differ."
+  "Backend copy drift detected: R/mlm_core.R and inst/app/R/mlm_core.R differ. Run Rscript dev/sync-app.R."
 )
 
 stop_if_not(
   same_file("app.R", "inst/app/app.R"),
-  "App copy drift detected: app.R and inst/app/app.R differ."
+  "App copy drift detected: app.R and inst/app/app.R differ. Run Rscript dev/sync-app.R."
 )
 
 stop_if_not(
   same_file("www/style.css", "inst/app/www/style.css"),
-  "CSS copy drift detected: www/style.css and inst/app/www/style.css differ."
+  "CSS copy drift detected: www/style.css and inst/app/www/style.css differ. Run Rscript dev/sync-app.R."
 )
+
+app_files <- c("app.R", "inst/app/app.R")
+external_runtime_pattern <- "cdn\\.jsdelivr|mathjax\\.rstudio\\.com|MathJax\\.js|https://.*\\.js"
+external_runtime_hits <- unlist(lapply(app_files[file.exists(app_files)], function(path) {
+  lines <- readLines(path, warn = FALSE)
+  hits <- grep(external_runtime_pattern, lines, value = TRUE)
+  if (length(hits)) paste(path, hits, sep = ": ")
+}))
+
+stop_if_not(!length(external_runtime_hits), paste(c(
+  "External runtime JavaScript references found in app files:",
+  external_runtime_hits
+), collapse = "\n"))
 
 public_files <- c(
   "README.md",
   "BETA_TESTING.md",
   "DEMO.md",
+  "paper/paper.md",
+  "paper/ARTICLE_READINESS.md",
+  "paper/SCREENSHOT_CHECKLIST.md",
   "vignettes/getting-started.Rmd",
   "vignettes/supported-models.Rmd",
-  "vignettes/equations-and-reporting.Rmd"
+  "vignettes/equations-and-reporting.Rmd",
+  "vignettes/hlm-parity-and-validation.Rmd"
 )
 
 local_path_pattern <- "C:\\\\Users|AppData|mah22013"
@@ -44,6 +61,20 @@ local_path_hits <- unlist(lapply(public_files[file.exists(public_files)], functi
 stop_if_not(!length(local_path_hits), paste(c(
   "Local machine path text found in public documentation:",
   local_path_hits
+), collapse = "\n"))
+
+required_vignettes <- c(
+  "getting-started",
+  "supported-models",
+  "equations-and-reporting",
+  "hlm-parity-and-validation"
+)
+
+vignette_paths <- file.path("vignettes", paste0(required_vignettes, ".Rmd"))
+missing_vignettes <- vignette_paths[!file.exists(vignette_paths)]
+stop_if_not(!length(missing_vignettes), paste(c(
+  "Required vignettes are missing:",
+  missing_vignettes
 ), collapse = "\n"))
 
 tarballs <- list.files(pattern = "^mlmr_.*[.]tar[.]gz$")
@@ -63,6 +94,9 @@ if (length(tarballs)) {
     "dev/",
     "docs/",
     "pkgdown",
+    "paper/",
+    "CITATION\\.cff",
+    "codemeta\\.json",
     "Rplots",
     "C:\\\\Users",
     "AppData",
@@ -74,6 +108,15 @@ if (length(tarballs)) {
     paste("Excluded or local artifacts found in", latest_tarball, ":"),
     artifact_hits
   ), collapse = "\n"))
+
+  built_vignette_hits <- unlist(lapply(required_vignettes, function(vig) {
+    expected <- paste0("mlmr/inst/doc/", vig, c(".html", ".R", ".Rmd"))
+    setdiff(expected, files)
+  }))
+  stop_if_not(!length(built_vignette_hits), paste(c(
+    paste("Built vignette files are missing from", latest_tarball, ":"),
+    built_vignette_hits
+  ), collapse = "\n"))
 }
 
 required_files <- c(
@@ -82,6 +125,12 @@ required_files <- c(
   "inst/CITATION",
   "cran-comments.md",
   "CRAN_SUBMISSION.md",
+  "CITATION.cff",
+  "codemeta.json",
+  "paper/paper.md",
+  "paper/paper.bib",
+  "paper/ARTICLE_READINESS.md",
+  "paper/SCREENSHOT_CHECKLIST.md",
   "BETA_TESTING.md",
   "PUBLICATION_READINESS.md",
   ".github/workflows/R-CMD-check.yaml",

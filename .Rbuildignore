@@ -20,6 +20,9 @@
 ^docker-compose\.yml$
 ^\.dockerignore$
 ^release-notes-v.*\.md$
+^paper$
+^CITATION\.cff$
+^codemeta\.json$
 ^mlmr_.*\.tar\.gz$
 ^mlmr\.Rcheck$
 ^mlmr-Ex\.

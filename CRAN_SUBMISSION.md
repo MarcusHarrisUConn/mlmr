@@ -15,8 +15,12 @@ excluded from the CRAN source package by `.Rbuildignore`.
 ## Current Status
 
 - CRAN package name check: `mlmr` was not found in current CRAN packages.
-- Local full source-package check: passed with `0 errors | 0 warnings | 1 note`.
+- Local full source-package check: passed with `0 errors | 0 warnings | 2 notes`
+  on macOS when using Quarto's bundled Pandoc.
 - Expected note: new submission.
+- Local environment note: HTML validation was skipped because the available
+  `tidy` executable was not recent enough. This is a local toolchain issue, not
+  a package warning.
 - GitHub Actions check matrix: passing on Windows release, macOS release,
   Ubuntu release, and Ubuntu devel.
 - pkgdown deployment: passing.
@@ -31,7 +35,22 @@ excluded from the CRAN source package by `.Rbuildignore`.
 Run these from the package root immediately before CRAN submission:
 
 ```powershell
+$env:PATH = "C:\Program Files\Quarto\bin\tools;" + $env:PATH
+$env:RSTUDIO_PANDOC = "C:\Program Files\Quarto\bin\tools"
 R CMD build .
+R CMD check --as-cran mlmr_0.1.0.tar.gz
+```
+
+On macOS with Quarto installed in `/Applications/quarto`, the equivalent
+commands are:
+
+```sh
+PATH=/Applications/quarto/bin/tools/aarch64:$PATH \
+RSTUDIO_PANDOC=/Applications/quarto/bin/tools/aarch64 \
+R CMD build .
+
+PATH=/Applications/quarto/bin/tools/aarch64:$PATH \
+RSTUDIO_PANDOC=/Applications/quarto/bin/tools/aarch64 \
 R CMD check --as-cran mlmr_0.1.0.tar.gz
 ```
 
@@ -43,6 +62,39 @@ R CMD Rd2pdf . --output=dev/mlmr-reference-manual.pdf
 
 If multiple LaTeX distributions are installed, make sure the working LaTeX
 distribution comes first on `PATH` before building the manual.
+
+## CRAN Submission Dry Run
+
+Complete this dry run in a clean checkout immediately before uploading to CRAN:
+
+1. Pull or clone a fresh copy of `main`.
+2. Confirm the version in `DESCRIPTION`, `NEWS.md`, `cran-comments.md`, and this
+   file all refer to the same release.
+3. Run the local readiness script:
+
+   ```r
+   source("dev/check-publication-readiness.R")
+   ```
+
+4. Build the source package with Quarto's bundled Pandoc available on `PATH`.
+5. Run `R CMD check --as-cran mlmr_0.1.0.tar.gz`.
+6. Install the built tarball into a temporary library and verify:
+
+   ```r
+   library(mlmr)
+   citation("mlmr")
+   mlmr::mlm_validation_benchmarks(run = TRUE)
+   ```
+
+7. Launch the installed app with `mlmr::run_mlmr()`, fit the built-in example
+   model, and export the Quarto report, R code, raw LaTeX, APA tables,
+   publication bundle, and validation report.
+8. Inspect `mlmr_0.1.0.tar.gz` and confirm it includes built vignettes in
+   `inst/doc` but excludes development and article-preparation files such as
+   `paper/`, `dev/`, `CITATION.cff`, and `codemeta.json`.
+9. Re-check the GitHub Actions matrix and pkgdown deployment after pushing the
+   final release commit.
+10. Upload only if there are no errors, no warnings, and only expected notes.
 
 ## CRAN Upload
 

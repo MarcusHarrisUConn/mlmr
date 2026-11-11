@@ -38,5 +38,16 @@ R CMD build .
 R CMD check --no-manual --no-build-vignettes mlmr_0.1.0.tar.gz
 ```
 
-The test suite currently includes backend smoke tests for formula generation,
-centering, model fitting, equations, Tau labels, APA tables, and export helpers.
+The bundled Shiny app in `inst/app/` runs from mirrored copies of
+`R/mlm_core.R`, `app.R`, and `www/style.css`. After editing any of those files,
+refresh the copies:
+
+```r
+Rscript dev/sync-app.R
+```
+
+Tests live in `tests/testthat/` and can be run with `devtools::test()`. They
+cover model specification and validation, centering, formula generation,
+level-by-level equations and Tau matrices, APA tables, reproducible-code
+round trips, readiness checks, and app/package synchronization.
+`tests/backend-tests.R` keeps the original end-to-end smoke test.

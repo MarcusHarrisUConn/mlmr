@@ -36,6 +36,54 @@ The display is intentionally stacked so each coefficient is visible on its own
 line. This makes it easier to see which predictors are attached to which
 coefficient and which coefficients have random components.
 
+`mlmr` assigns each predictor to a level from the fitted data. A predictor that
+is constant within every unit of a grouping factor is treated as measured at
+that level. As a result:
+
+- Level-1 predictors appear in the Level 1 equation with their own coefficient;
+- higher-level predictors appear in the equation for the intercept;
+- a cross-level interaction appears in the equation for the lower-level slope
+  it moderates, so $\gamma_{11}$ is the effect of the first Level-2 predictor on
+  the first Level-1 slope;
+- each dummy code of a categorical predictor has its own coefficient.
+
+The same equations are available in code:
+
+```{r equations-example, eval = TRUE}
+library(mlmr)
+
+dat <- example_hsb(n_schools = 12, min_students = 10, max_students = 14)
+spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(
+    ses = list(center = "CWC"),
+    meanses = list(center = "GMC"),
+    sector = list(center = "none")
+  ),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE, slopes = "ses",
+    correlation = TRUE)),
+  interactions = list(c("ses", "sector")),
+  data = dat
+)
+result <- suppressWarnings(mlm_fit(spec))
+eq <- mlm_latex_equations(result)
+eq$level
+writeLines(strsplit(eq$equations[[2]], "\\\\ ", fixed = TRUE)[[1]])
+```
+
+The coefficient key links each symbol to a row of the fixed-effects table:
+
+```{r equations-key, eval = TRUE}
+eq$key
+```
+
+Three-level nested models use $\pi$, $\beta$, and $\gamma$ coefficients for
+Levels 1, 2, and 3. Generalized models are written for the linear predictor
+$\eta$, with the link function shown and no Level-1 residual. Models with
+crossed grouping factors do not have a level-by-level form, so they are written
+as a single mixed-model equation.
+
 ## Combined Equation
 
 The combined equation substitutes the higher-level equations into the lower-level
@@ -54,10 +102,11 @@ effects. In `mlmr`, the Tau display distinguishes:
 - random intercept variances;
 - random slope variances;
 - estimated covariances among random effects;
-- terms that are held fixed rather than estimated as random effects.
+- covariances fixed at zero when random effects are specified as independent.
 
-The accompanying label table maps each matrix index, such as `u_0` or `u_1`, to
-the corresponding coefficient or predictor.
+The accompanying label table maps each random effect, such as `u_0j` or `u_1j`,
+to the corresponding coefficient. The indices match the level-by-level
+equations: `u_1j` is the random component of the slope $\beta_{1j}$.
 
 ## APA-Style Tables
 
@@ -69,7 +118,9 @@ The **Results > Tables** tab includes APA-style displays for:
 - intraclass correlations.
 
 The fixed-effects table includes estimates, standard errors, test statistics,
-p values, and 95% confidence intervals. The table output is designed for quick
+p values, and 95% confidence intervals. For logistic and count models the app
+adds exponentiated coefficients (odds ratios or incidence rate ratios) with
+their intervals; in code, use `mlm_apa_tables(result, exponentiate = TRUE)`. The table output is designed for quick
 inspection in the app and for manuscript export.
 
 ## Export Options
