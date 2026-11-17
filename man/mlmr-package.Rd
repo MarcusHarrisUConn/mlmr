@@ -4,22 +4,23 @@
 \alias{mlmr-package}
 \title{A Guided Interface for Mixed-Effects and Multilevel Models}
 \description{
-  \pkg{mlmr} provides a guided HLM 8-style Shiny interface and supporting R
+  \pkg{mlmr} provides a guided level-by-level Shiny interface and supporting R
   toolkit for specifying, fitting, understanding, and reporting mixed-effects
   and multilevel models with \pkg{lme4}.
 }
 \details{
   The package is designed for researchers, instructors, and students who want a
-  level-by-level HLM workflow while preserving transparent and reproducible R
-  code. It supports two- and three-level nested designs, longitudinal growth
-  models, crossed random effects, Hierarchical Generalized Linear Models
-  (HGLMs), grand-mean and cluster-mean centering, optional Satterthwaite and
+  guided hierarchical equation workflow while preserving transparent and
+  reproducible R code. It supports two- and three-level nested designs,
+  longitudinal growth models, crossed random effects, generalized linear mixed
+  models, grand-mean and cluster-mean centering, optional Satterthwaite and
   Kenward-Roger degrees of freedom, Huber-White cluster-robust sandwich standard
-  errors (\code{\link{mlm_robust_se}
-  }), single-term variance-component likelihood-ratio tests
-  (\code{\link{mlm_variance_tests}}), Level-1 variance homogeneity testing
+  errors (\code{\link{mlm_robust_se}}), multiparameter fixed-effect Wald tests
+  (\code{\link{mlm_wald_test}}), single-term variance-component likelihood-ratio
+  tests (\code{\link{mlm_variance_tests}}), Level-1 variance homogeneity testing
   (\code{\link{mlm_homogeneity_test}}), logistic population-average marginal
-  effects (\code{\link{mlm_population_average}}), Nakagawa \eqn{R^2}
+  effects (\code{\link{mlm_population_average}}), downloadable Level-1 and
+  cluster residual files (\code{\link{mlm_residual_files}}), Nakagawa \eqn{R^2}
   (\code{\link{mlm_r2}}), empirical Bayes random-intercept and random-slope
   reliabilities (\code{\link{mlm_reliability}}), pre-fit and post-fit symbolic
   hierarchical equations (\code{\link{mlm_spec_equations}},
@@ -29,7 +30,7 @@
   Launch the app with \code{\link{run_mlmr}()}.
 
   Inspect current scope and validation evidence with
-  \code{\link{mlm_supported_models}()}, \code{\link{mlm_hlm8_parity}()}, and
+  \code{\link{mlm_supported_models}()}, \code{\link{mlm_feature_matrix}()}, and
   \code{\link{mlm_validation_report}()}.
 
   Create manuscript and reproducibility materials with

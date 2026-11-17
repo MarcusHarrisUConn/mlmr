@@ -57,30 +57,11 @@ app_server <- function(input, output, session) {
   extra_interactions <- shiny::reactiveVal(list())
   dataset_signature <- shiny::reactiveVal("")
 
-  # Global Advanced / HGLM Mode notification and one-click Model-tab activation
-  shiny::observeEvent(input$advanced_mode, {
-    if (isTRUE(input$advanced_mode)) {
-      shiny::showNotification(
-        "Advanced / HGLM Mode enabled: Non-Gaussian outcomes (Binomial, Poisson, Negative Binomial, Gamma) and custom formula controls are now visible.",
-        type = "message",
-        duration = 4
-      )
-    } else {
-      shiny::updateSelectInput(session, "distribution", selected = "gaussian")
-      shiny::updateSelectInput(session, "link", selected = "identity")
-      shiny::showNotification("Switched to Standard Gaussian HLM Mode.", type = "message", duration = 2.5)
-    }
-  }, ignoreInit = TRUE)
-
-  shiny::observeEvent(input$enable_hglm_from_model, {
-    shiny::updateCheckboxInput(session, "advanced_mode", value = TRUE)
-  })
-
   shiny::observeEvent(input$go_customize_model, {
     shiny::updateNavbarPage(session, "main_nav", selected = "Model")
   })
 
-  # Bidirectional Outcome (DV) sync between Data tab and Model tab
+  # Bidirectional Outcome (DV) and Distribution/Link sync between Data tab and Model tab
   shiny::observeEvent(input$outcome_data, {
     if (!is.null(input$outcome_data) && !identical(input$outcome_data, input$outcome)) {
       shiny::updateSelectInput(session, "outcome", selected = input$outcome_data)
@@ -90,6 +71,30 @@ app_server <- function(input, output, session) {
   shiny::observeEvent(input$outcome, {
     if (!is.null(input$outcome) && !identical(input$outcome, input$outcome_data)) {
       shiny::updateSelectInput(session, "outcome_data", selected = input$outcome)
+    }
+  }, ignoreInit = TRUE)
+
+  shiny::observeEvent(input$distribution_data, {
+    if (!is.null(input$distribution_data) && !identical(input$distribution_data, input$distribution)) {
+      shiny::updateSelectInput(session, "distribution", selected = input$distribution_data)
+    }
+  }, ignoreInit = TRUE)
+
+  shiny::observeEvent(input$distribution, {
+    if (!is.null(input$distribution) && !identical(input$distribution, input$distribution_data)) {
+      shiny::updateSelectInput(session, "distribution_data", selected = input$distribution)
+    }
+  }, ignoreInit = TRUE)
+
+  shiny::observeEvent(input$link_data, {
+    if (!is.null(input$link_data) && !identical(input$link_data, input$link)) {
+      shiny::updateSelectInput(session, "link", selected = input$link_data)
+    }
+  }, ignoreInit = TRUE)
+
+  shiny::observeEvent(input$link, {
+    if (!is.null(input$link) && !identical(input$link, input$link_data)) {
+      shiny::updateSelectInput(session, "link_data", selected = input$link)
     }
   }, ignoreInit = TRUE)
 
@@ -211,7 +216,7 @@ app_server <- function(input, output, session) {
     shiny::selectInput("outcome", "Dependent Variable (Outcome Y)", choices = names(dat), selected = sel)
   })
 
-  # Dynamic HLM 8 Cluster Selectors based on Design Mode
+  # Dynamic Cluster Selectors based on Design Mode
   output$cluster_selectors <- shiny::renderUI({
     dat <- data_reactive()
     choices <- candidate_group_vars(dat)
@@ -343,22 +348,6 @@ app_server <- function(input, output, session) {
     shiny::div(class = cls, nc$detail)
   })
 
-  output$mode_badge <- shiny::renderUI({
-    if (isTRUE(input$advanced_mode)) {
-      shiny::div(
-        class = "mode-badge advanced",
-        shiny::strong("Advanced / HGLM Mode Active"),
-        shiny::span(" Non-Gaussian HGLMs (Binomial, Poisson, NegBin, Gamma) and custom formula controls are unlocked below and on the Model tab.")
-      )
-    } else {
-      shiny::div(
-        class = "mode-badge standard",
-        shiny::strong("Standard Gaussian HLM Mode"),
-        shiny::span(" Toggle 'Advanced / HGLM' in the top navigation bar at any time for binary, count, or skewed outcomes.")
-      )
-    }
-  })
-
   # Empirical variable classification helper for annotated choices
   annotated_predictor_choices <- shiny::reactive({
     dat <- data_reactive()
@@ -463,7 +452,7 @@ app_server <- function(input, output, session) {
     "none"
   }
 
-  # Inline HLM 8 Level-1 rows: centering + Random Slope (u_qj) checkbox per variable!
+  # Inline Level-1 rows: centering + Random Slope (u_qj) checkbox per variable
   output$l1_inline_controls <- shiny::renderUI({
     dat <- data_reactive()
     l1 <- intersect(input$level1_terms %||% character(), names(dat))
@@ -475,9 +464,9 @@ app_server <- function(input, output, session) {
       cur_ctr <- shiny::isolate(input[[paste0("center_", term)]]) %||% default_center_for(term)
       has_slope <- term %in% saved_slopes
       shiny::div(
-        class = "hlm-var-row",
+        class = "mlm-var-row",
         shiny::div(
-          class = "hlm-var-header",
+          class = "mlm-var-header",
           shiny::span(term),
           shiny::span(class = "tau-sub-label", if (is_num) "Numeric" else "Factor")
         ),
@@ -537,9 +526,9 @@ app_server <- function(input, output, session) {
       is_num <- term %in% numeric_vars(dat)
       cur_ctr <- shiny::isolate(input[[paste0("center_", term)]]) %||% default_center_for(term)
       shiny::div(
-        class = "hlm-var-row",
+        class = "mlm-var-row",
         shiny::div(
-          class = "hlm-var-header",
+          class = "mlm-var-header",
           shiny::span(term),
           shiny::span(class = "tau-sub-label", if (is_num) "Numeric" else "Factor")
         ),
@@ -564,7 +553,7 @@ app_server <- function(input, output, session) {
     }))
   })
 
-  # HLM 8 Cross-Level Slope Moderator Selectors (Slope-as-Outcome Equations!)
+  # Cross-Level Slope Moderator Selectors (Slope-as-Outcome Equations)
   output$cross_level_moderator_controls <- shiny::renderUI({
     dat <- data_reactive()
     l1 <- intersect(input$level1_terms %||% character(), names(dat))
@@ -733,19 +722,30 @@ app_server <- function(input, output, session) {
     )
   }
 
+  active_distribution <- shiny::reactive({
+    input$distribution %||% input$distribution_data %||% "gaussian"
+  })
+
+  active_link <- shiny::reactive({
+    dist <- active_distribution()
+    valid_links <- link_choices(dist)
+    cand <- input$link %||% input$link_data %||% valid_links[[1]]
+    first_or(intersect(cand, valid_links), valid_links[[1]])
+  })
+
   shiny::observeEvent(input$distribution, {
     choices <- link_choices(input$distribution)
-    shiny::updateSelectInput(session, "link", choices = choices, selected = first_or(intersect(input$link %||% choices[[1]], choices), choices[[1]]))
+    sel <- first_or(intersect(input$link %||% choices[[1]], choices), choices[[1]])
+    shiny::updateSelectInput(session, "link", choices = choices, selected = sel)
+    shiny::updateSelectInput(session, "link_data", choices = choices, selected = sel)
   }, ignoreInit = FALSE)
 
-  output$model_hglm_summary <- shiny::renderUI({
-    dist <- input$distribution %||% "gaussian"
-    lnk <- input$link %||% "identity"
-    shiny::div(
-      class = "tau-sub-label",
-      sprintf("Active family: %s (%s link). Adjust distribution/link in the Data sidebar or click a preset above.", dist, lnk)
-    )
-  })
+  shiny::observeEvent(input$distribution_data, {
+    choices <- link_choices(input$distribution_data)
+    sel <- first_or(intersect(input$link_data %||% choices[[1]], choices), choices[[1]])
+    shiny::updateSelectInput(session, "link_data", choices = choices, selected = sel)
+    shiny::updateSelectInput(session, "link", choices = choices, selected = sel)
+  }, ignoreInit = TRUE)
 
   set_group_slopes <- function(group_map) {
     per_group_random(group_map)
@@ -763,8 +763,7 @@ app_server <- function(input, output, session) {
     }
   }
 
-  apply_binary_hglm_preset <- function() {
-    shiny::updateCheckboxInput(session, "advanced_mode", value = TRUE)
+  apply_binary_preset <- function() {
     shiny::updateCheckboxInput(session, "use_example_data", value = TRUE)
     shiny::updateSelectInput(session, "example_dataset", selected = "hsb")
     shiny::updateSelectInput(session, "design_mode", selected = "two_level")
@@ -772,7 +771,9 @@ app_server <- function(input, output, session) {
     shiny::updateSelectInput(session, "outcome", selected = "passmath")
     shiny::updateSelectInput(session, "outcome_data", selected = "passmath")
     shiny::updateSelectInput(session, "distribution", selected = "binomial")
-    shiny::updateSelectInput(session, "link", selected = "logit")
+    shiny::updateSelectInput(session, "distribution_data", selected = "binomial")
+    shiny::updateSelectInput(session, "link", choices = c("logit", "probit"), selected = "logit")
+    shiny::updateSelectInput(session, "link_data", choices = c("logit", "probit"), selected = "logit")
     update_level_terms(
       level1 = c("ses", "priorachieve", "homework", "female", "minority"),
       level2 = c("meanses", "climate", "sector")
@@ -781,11 +782,10 @@ app_server <- function(input, output, session) {
     extra_interactions(list())
     shiny::updateTextInput(session, "interactions", value = "")
     set_group_slopes(list(schoolid = list(slopes = "ses", correlation = TRUE)))
-    shiny::showNotification("Binary logistic HGLM preset loaded (Outcome: passmath, Binomial logit).", type = "message")
+    shiny::showNotification("Binary logistic mixed-model preset loaded (Outcome: passmath, Binomial logit).", type = "message")
   }
 
-  apply_poisson_hglm_preset <- function() {
-    shiny::updateCheckboxInput(session, "advanced_mode", value = TRUE)
+  apply_poisson_preset <- function() {
     shiny::updateCheckboxInput(session, "use_example_data", value = TRUE)
     shiny::updateSelectInput(session, "example_dataset", selected = "hsb")
     shiny::updateSelectInput(session, "design_mode", selected = "two_level")
@@ -793,7 +793,9 @@ app_server <- function(input, output, session) {
     shiny::updateSelectInput(session, "outcome", selected = "absences")
     shiny::updateSelectInput(session, "outcome_data", selected = "absences")
     shiny::updateSelectInput(session, "distribution", selected = "poisson")
-    shiny::updateSelectInput(session, "link", selected = "log")
+    shiny::updateSelectInput(session, "distribution_data", selected = "poisson")
+    shiny::updateSelectInput(session, "link", choices = "log", selected = "log")
+    shiny::updateSelectInput(session, "link_data", choices = "log", selected = "log")
     update_level_terms(
       level1 = c("ses", "priorachieve", "homework", "female", "minority"),
       level2 = c("meanses", "climate", "sector")
@@ -802,13 +804,13 @@ app_server <- function(input, output, session) {
     extra_interactions(list())
     shiny::updateTextInput(session, "interactions", value = "")
     set_group_slopes(list(schoolid = list(slopes = "ses", correlation = TRUE)))
-    shiny::showNotification("Poisson count HGLM preset loaded (Outcome: absences, Poisson log).", type = "message")
+    shiny::showNotification("Poisson count mixed-model preset loaded (Outcome: absences, Poisson log).", type = "message")
   }
 
-  shiny::observeEvent(input$binary_preset, apply_binary_hglm_preset())
-  shiny::observeEvent(input$binary_preset_data, apply_binary_hglm_preset())
-  shiny::observeEvent(input$poisson_preset, apply_poisson_hglm_preset())
-  shiny::observeEvent(input$poisson_preset_data, apply_poisson_hglm_preset())
+  shiny::observeEvent(input$binary_preset, apply_binary_preset())
+  shiny::observeEvent(input$binary_preset_data, apply_binary_preset())
+  shiny::observeEvent(input$poisson_preset, apply_poisson_preset())
+  shiny::observeEvent(input$poisson_preset_data, apply_poisson_preset())
 
   shiny::observeEvent(input$apply_model_preset, {
     preset <- input$model_preset %||% "custom"
@@ -817,11 +819,11 @@ app_server <- function(input, output, session) {
       return()
     }
     if (identical(preset, "logistic")) {
-      apply_binary_hglm_preset()
+      apply_binary_preset()
       return()
     }
     if (identical(preset, "poisson")) {
-      apply_poisson_hglm_preset()
+      apply_poisson_preset()
       return()
     }
     if (identical(preset, "longitudinal")) {
@@ -833,7 +835,9 @@ app_server <- function(input, output, session) {
       shiny::updateSelectInput(session, "outcome", selected = "reading")
       shiny::updateSelectInput(session, "outcome_data", selected = "reading")
       shiny::updateSelectInput(session, "distribution", selected = "gaussian")
-      shiny::updateSelectInput(session, "link", selected = "identity")
+      shiny::updateSelectInput(session, "distribution_data", selected = "gaussian")
+      shiny::updateSelectInput(session, "link", choices = "identity", selected = "identity")
+      shiny::updateSelectInput(session, "link_data", choices = "identity", selected = "identity")
       shiny::updateCheckboxInput(session, "reml", value = TRUE)
       update_level_terms(level1 = c("wave", "studyhours"), level2 = c("treatment", "baseses"))
       slope_moderators(list(wave = "treatment"))
@@ -852,7 +856,9 @@ app_server <- function(input, output, session) {
     shiny::updateSelectInput(session, "outcome", selected = "mathscore")
     shiny::updateSelectInput(session, "outcome_data", selected = "mathscore")
     shiny::updateSelectInput(session, "distribution", selected = "gaussian")
-    shiny::updateSelectInput(session, "link", selected = "identity")
+    shiny::updateSelectInput(session, "distribution_data", selected = "gaussian")
+    shiny::updateSelectInput(session, "link", choices = "identity", selected = "identity")
+    shiny::updateSelectInput(session, "link_data", choices = "identity", selected = "identity")
     shiny::updateCheckboxInput(session, "reml", value = TRUE)
     shiny::updateSelectInput(session, "design_mode", selected = "two_level")
     shiny::updateSelectInput(session, "cluster_l2", selected = "schoolid")
@@ -1045,7 +1051,7 @@ app_server <- function(input, output, session) {
     valid_slopes <- intersect(names(fixed_spec()), numeric_vars(dat))
     out <- lapply(groups, function(group_name) {
       grp_entry <- saved_map[[group_name]]
-      slopes <- if (identical(group_name, focus) && !is.null(input$random_slopes) && isTRUE(input$advanced_mode)) {
+      slopes <- if (identical(group_name, focus) && !is.null(input$random_slopes) && (isTRUE(input$advanced_mode) || length(groups) > 1L)) {
         intersect(input$random_slopes, valid_slopes)
       } else if (!is.null(grp_entry)) {
         intersect(grp_entry$slopes %||% character(), valid_slopes)
@@ -1086,8 +1092,8 @@ app_server <- function(input, output, session) {
     shiny::req(out_var, out_var %in% names(dat))
     mlm_spec(
       outcome = out_var,
-      distribution = if (isTRUE(input$advanced_mode)) input$distribution %||% "gaussian" else "gaussian",
-      link = if (isTRUE(input$advanced_mode)) input$link %||% "identity" else "identity",
+      distribution = active_distribution(),
+      link = active_link(),
       fixed = fixed_spec(),
       grouping = grouping_spec(),
       nesting = active_nesting_note(),
@@ -1176,8 +1182,8 @@ app_server <- function(input, output, session) {
     missingness_table(data_reactive())
   }, striped = TRUE, bordered = TRUE)
 
-  output$hlm8_parity_table <- shiny::renderTable({
-    mlm_hlm8_parity()
+  output$feature_matrix_table <- shiny::renderTable({
+    mlm_feature_matrix()
   }, striped = TRUE, bordered = TRUE)
 
   output$validation_benchmarks_table <- shiny::renderTable({
@@ -1401,6 +1407,10 @@ app_server <- function(input, output, session) {
           shiny::updateSelectInput(session, "cluster_l2", selected = "schoolid")
           shiny::updateSelectInput(session, "outcome", selected = "mathscore")
           shiny::updateSelectInput(session, "outcome_data", selected = "mathscore")
+          shiny::updateSelectInput(session, "distribution", selected = "gaussian")
+          shiny::updateSelectInput(session, "distribution_data", selected = "gaussian")
+          shiny::updateSelectInput(session, "link", choices = "identity", selected = "identity")
+          shiny::updateSelectInput(session, "link_data", choices = "identity", selected = "identity")
           update_level_terms(
             level1 = c("ses", "priorachieve", "homework", "female", "minority"),
             level2 = c("meanses", "climate", "schoolsize", "sector"),
@@ -1659,7 +1669,7 @@ app_server <- function(input, output, session) {
 
   output$robust_table_html <- shiny::renderUI({
     res <- active_result()
-    if (is.null(res)) return(shiny::p("Fit a model to compute HLM cluster-robust sandwich standard errors."))
+    if (is.null(res)) return(shiny::p("Fit a model to compute cluster-robust sandwich standard errors."))
     shiny::HTML(apa_robust_html(res, table_number = "1b"))
   })
 
@@ -1668,7 +1678,7 @@ app_server <- function(input, output, session) {
     if (is.null(res)) return(NULL)
     shiny::tags$div(
       class = "mode-badge advanced",
-      shiny::tags$strong("HLM Inference Summary"),
+      shiny::tags$strong("Inference Summary"),
       shiny::tags$span(paste(" ", fixed_effects_note(res), " Both model-based SEs (Table 1a) and Huber-White cluster-robust sandwich SEs (Table 1b) are shown below. ", icc_note(res$fit)))
     )
   })
@@ -1709,6 +1719,33 @@ app_server <- function(input, output, session) {
     shiny::HTML(apa_r2_html(res))
   })
 
+  output$wald_terms_selector <- shiny::renderUI({
+    res <- active_result()
+    if (is.null(res)) return(shiny::p("Fit a model to select fixed effects for joint hypothesis testing."))
+    choices <- setdiff(names(lme4::fixef(res$fit)), "(Intercept)")
+    if (!length(choices)) choices <- names(lme4::fixef(res$fit))
+    sel <- choices[seq_len(min(2L, length(choices)))]
+    shiny::selectizeInput(
+      "wald_terms",
+      "Fixed-effect coefficients tested equal to 0",
+      choices = choices,
+      selected = sel,
+      multiple = TRUE,
+      options = list(plugins = list("remove_button"))
+    )
+  })
+
+  output$wald_test_table <- shiny::renderTable({
+    res <- active_result()
+    shiny::req(res)
+    terms <- input$wald_terms
+    if (is.null(terms) || !length(terms)) {
+      all_f <- setdiff(names(lme4::fixef(res$fit)), "(Intercept)")
+      terms <- all_f[seq_len(min(2L, length(all_f)))]
+    }
+    mlm_wald_test(res, terms = terms, vcov_type = input$wald_vcov_type %||% "CR1")
+  }, striped = TRUE, bordered = TRUE)
+
   output$pop_average_card_ui <- shiny::renderUI({
     res <- active_result()
     if (is.null(res)) return(NULL)
@@ -1716,11 +1753,11 @@ app_server <- function(input, output, session) {
     if (!nrow(pa)) return(NULL)
     names(pa) <- c("Predictor", "b (Unit-Specific)", "OR [95% CI] (Unit-Specific)", "b (Pop.-Average)", "OR [95% CI] (Pop.-Average)")
     bslib::card(
-      bslib::card_header("HGLM Unit-Specific vs. Population-Average (Marginal) Odds Ratios"),
+      bslib::card_header("Unit-Specific vs. Population-Average (Marginal) Logistic Odds Ratios"),
       shiny::HTML(apa_html_table(
         pa,
         table_number = "1c",
-        title = "Unit-Specific and Population-Average Logistic HGLM Estimates",
+        title = "Unit-Specific and Population-Average Logistic Mixed-Model Estimates",
         note = "Unit-specific estimates condition on cluster random effects; population-average approximations marginalize across cluster heterogeneity (Zeger et al., 1988; Raudenbush & Bryk, 2002, Ch. 10).",
         italic_columns = character()
       ))
@@ -2096,6 +2133,24 @@ app_server <- function(input, output, session) {
       res <- active_result()
       text <- if (is.null(res)) "% Fit a model to generate APA tables." else apa_tables_latex_document(res, exponentiate = TRUE)
       writeLines(text, file, useBytes = TRUE)
+    }
+  )
+
+  output$download_level1_residuals <- shiny::downloadHandler(
+    filename = function() "mlmr_level1_residuals.csv",
+    content = function(file) {
+      res <- active_result()
+      df <- if (is.null(res)) data.frame(Note = "Fit a model before exporting residuals.") else mlm_residual_files(res)$level1
+      utils::write.csv(df, file, row.names = FALSE)
+    }
+  )
+
+  output$download_cluster_residuals <- shiny::downloadHandler(
+    filename = function() "mlmr_cluster_eb_residuals.csv",
+    content = function(file) {
+      res <- active_result()
+      df <- if (is.null(res)) data.frame(Note = "Fit a model before exporting residuals.") else mlm_residual_files(res)$cluster
+      utils::write.csv(df, file, row.names = FALSE)
     }
   )
 }

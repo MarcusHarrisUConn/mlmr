@@ -18,10 +18,10 @@ knitr::opts_chunk$set(
 
 `mlmr` is an open-source Shiny application and R toolkit for specifying,
 fitting, understanding, and reporting mixed-effects and multilevel models in R.
-It provides an HLM 8-style level-by-level workflow—showing the Dependent
-Variable, Independent Variables at each level, centering choices, random
-slopes, and hierarchical equations at every stage—while keeping the underlying
-`lme4` formula and R script completely transparent and reproducible.
+It provides a guided level-by-level workflow—displaying the Dependent Variable,
+Independent Variables at each level, centering choices, random slopes, and
+hierarchical equations at every stage—while keeping the underlying `lme4`
+formula and R script completely transparent and reproducible.
 
 ## Install and Load
 
@@ -43,28 +43,26 @@ mlmr::run_mlmr()
 ### Key Interface Landmarks
 
 1. **Home Page Blueprint (`Data > Overview`)**: Immediately displays the active
-   **Dependent Variable (Outcome $Y$)**, the **Cluster Hierarchy** (2-level
-   nested, 3-level nested, longitudinal repeated-measures, or cross-classified),
-   all **Active Independent Variables** with their level, centering, and
-   random-slope / moderator roles, a live symbolic HLM equation preview, and an
-   auto-classified **Dataset Variable Guide** showing how every column in your
-   dataset varies within vs. between clusters.
-2. **Explicit Clustering Design Selector (`Data` sidebar)**: Choose among four
-   clear study designs—*Two-Level Nested*, *Three-Level Nested*, *Longitudinal /
-   Repeated Measures*, or *Cross-Classified*—with dedicated Level-2 and Level-3
-   cluster dropdowns rather than overlapping grouping controls.
-3. **Global `Advanced / HGLM` Switch (top navigation bar)**: Toggles Hierarchical
-   Generalized Linear Models (Binomial Logit/Probit, Poisson, Negative Binomial,
-   and Gamma) on both the **Data** and **Model** tabs, plus custom `lme4`
-   formula overrides.
-4. **Guided 4-Step HLM 8 Model Builder (`Model` tab)**:
-   - **Step 1**: Dependent Variable & Outcome Family;
+   **Dependent Variable (Outcome $Y$)**, the **Multilevel Clustering Structure**
+   (2-level nested, 3-level nested, longitudinal repeated-measures, or
+   cross-classified), all **Active Independent Variables** with their level,
+   centering, and random-slope / moderator roles, a live symbolic equation
+   preview, and an auto-classified **Dataset Variable Guide** showing how every
+   column in your dataset varies within vs. between clusters.
+2. **Direct Outcome Family & Clustering Design (`Data` sidebar)**: Select the
+   Dependent Variable, **Outcome distribution** (Gaussian, Binomial, Poisson,
+   Negative Binomial, or Gamma), and clustering design (*Two-Level Nested*,
+   *Three-Level Nested*, *Longitudinal*, or *Cross-Classified*) with dedicated
+   Level-2 and Level-3 cluster dropdowns.
+3. **Guided 4-Step Equation Builder (`Model` tab)**:
+   - **Step 1**: Dependent Variable, Outcome Distribution, & Model Template;
    - **Step 2**: Level-1 Predictors with inline centering (`CWC`, `GMC`, or
-     uncentered) and one-click **Random slope (`+ u`)** checkboxes;
+     uncentered) and per-variable **Random slope (`+ u`)** checkboxes;
    - **Step 3**: Level-2 / Level-3 Predictors and **Cross-Level Slope
      Moderators** (predictors of Level-1 slopes);
-   - **Step 4**: Variance-Covariance ($\mathbf{T}$) correlation structure, paired
-     with live symbolic Level-1/Level-2/Level-3 equations updated before fitting.
+   - **Step 4**: Variance-Covariance ($\mathbf{T}$) correlation structure,
+     within-level interactions, and optional advanced overrides, paired with
+     live symbolic Level-1/Level-2/Level-3 equations updated before fitting.
 
 ## Built-In Datasets and Supported File Formats
 
@@ -84,8 +82,8 @@ SPSS, SAS, and Stata files (`.sav`, `.por`, `.sas7bdat`, `.xpt`, `.dta` via
 ## Quick Programmatic Walkthrough
 
 Every interactive step in `mlmr` maps directly onto exported R functions. You can
-preview the symbolic HLM equations *before* fitting, fit the model, and extract
-both model-based and HLM 8 cluster-robust outputs:
+preview the symbolic multilevel equations *before* fitting, fit the model, and
+extract both model-based and cluster-robust outputs:
 
 ```{r quick-demo}
 dat <- example_hsb(n_schools = 10, min_students = 12, max_students = 16)
@@ -105,12 +103,12 @@ spec <- mlm_spec(
   data = dat
 )
 
-# Pre-fit symbolic HLM equations (no model estimation required)
+# Pre-fit symbolic equations (no model estimation required)
 pre_eq <- mlm_spec_equations(spec)
 pre_eq$level
 pre_eq$equations[[1]]
 
-# Fit model and inspect HLM 8 inferential companions
+# Fit model and inspect inferential companions
 fit <- suppressWarnings(mlm_fit(spec))
 mlm_r2(fit)
 mlm_reliability(fit)

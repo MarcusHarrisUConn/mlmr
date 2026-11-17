@@ -20,8 +20,8 @@ bibliography: paper.bib
 
 `mlmr` is an open-source R package and Shiny application for specifying,
 fitting, understanding, and reporting multilevel and mixed-effects models. The
-software provides a free, reproducible alternative to proprietary HLM-style
-graphical workflows: users construct models through a guided level-based
+software provides a free, reproducible alternative to proprietary point-and-click
+multilevel workflows: users construct models through a guided level-based
 interface while retaining transparent `lme4` [@lme4] and `lmerTest` [@lmerTest]
 syntax, hierarchical equations, labeled Tau covariance matrices, diagnostics,
 APA-style tables, effect sizes, and manuscript-ready `.zip` export bundles.

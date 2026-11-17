@@ -20,10 +20,10 @@ knitr::opts_chunk$set(
 diagnose, and report without hiding the underlying statistical machinery. Every
 model specified in the interface or R API compiles into an explicit `lme4` (or
 `lmerTest`) model accompanied by level-by-level equations, model-readiness
-checks, HLM 8 inferential companions, and reproducible R code.
+checks, robust inferential companions, and reproducible R code.
 
-This article documents the four core clustering designs, Gaussian vs. HGLM
-scope, and statistical guardrails built into `mlmr`.
+This article documents the four core clustering designs, Gaussian vs.
+generalized mixed-model scope, and statistical guardrails built into `mlmr`.
 
 ## Four Explicit Clustering Designs
 
@@ -44,24 +44,26 @@ designs into four transparent structures:
    two non-nested random factors (e.g., `schoolid` and `teacherid`), rendered in
    mixed-model notation with separate $\mathbf{T}$ covariance blocks.
 
-## Current Production Path (Gaussian HLM)
+## Current Production Path (Gaussian Linear Mixed Models)
 
 The primary production workflow covers Gaussian linear mixed models:
 
 - grand-mean (`GMC`), cluster-mean (`CWC`), and raw-metric predictor coding;
 - per-grouping-factor random intercepts and random slopes with correlated (`|`)
   or diagonal/uncorrelated (`||`) $\mathbf{T}$ covariance structures;
-- within-level interactions and HLM 8 cross-level slope moderators;
+- within-level interactions and cross-level slope moderators;
 - large-sample normal, Satterthwaite (`lmerTest`), or Kenward-Roger (`pbkrtest`)
   fixed-effect degrees of freedom;
 - Huber-White cluster-robust sandwich standard errors (`mlm_robust_se()` with
-  `CR1` small-sample correction or `CR0`);
+  `CR1` small-sample correction or `CR0`) and multiparameter joint Wald tests
+  (`mlm_wald_test()`);
 - empirical Bayes reliabilities ($\hat{\lambda}$) for both random intercepts and
   random slopes (`mlm_reliability()`);
 - single-term random-effect likelihood-ratio $\chi^2$ tests with Stram-Lee
   boundary mixture *p*-values (`mlm_variance_tests()`);
 - Bartlett's $H$ test for homogeneity of Level-1 residual variance across
-  clusters (`mlm_homogeneity_test()`).
+  clusters (`mlm_homogeneity_test()`) and downloadable Level-1 / cluster
+  residual files (`mlm_residual_files()`).
 
 ## Supported Scope Table
 
@@ -69,22 +71,22 @@ The primary production workflow covers Gaussian linear mixed models:
 knitr::kable(mlmr::mlm_supported_models())
 ```
 
-## Advanced / HGLM Workflows
+## Generalized Linear Mixed Models (Non-Gaussian Outcomes)
 
-Enabling **Advanced / HGLM** in the top navigation bar (or passing non-Gaussian
-`distribution` and `link` arguments to `mlm_spec()`) unlocks Hierarchical
-Generalized Linear Models estimated via Laplace / adaptive Gauss-Hermite
-approximation in `lme4::glmer()` / `lme4::glmer.nb()`:
+Selecting a non-Gaussian **Outcome distribution** in the **Data** or **Model**
+sidebar (or passing `distribution` and `link` to `mlm_spec()`) fits generalized
+linear mixed models via Laplace approximation in `lme4::glmer()` /
+`lme4::glmer.nb()`:
 
-- **Binomial (`logit`, `probit`, `cloglog`)**: reports link-scale log-odds/probit
-  coefficients, unit-specific odds ratios, cluster-robust sandwich standard
-  errors, and Zeger/HLM 8 population-average marginal coefficients and odds
-  ratios (`mlm_population_average()`);
+- **Binomial (`logit`, `probit`)**: reports link-scale coefficients,
+  unit-specific odds ratios, cluster-robust sandwich standard errors, and
+  Zeger et al. (1988) population-average marginal coefficients and odds ratios
+  (`mlm_population_average()`);
 - **Poisson and Negative Binomial (`log`)**: reports log-rate coefficients and
   exponentiated incidence rate ratios (`IRR`), with overdispersion checks;
 - **Gamma (`log`, `inverse`)**: positive skewed continuous outcomes.
 
-```{r hglm-example, eval = TRUE}
+```{r glmm-example, eval = TRUE}
 library(mlmr)
 
 dat <- example_hsb(n_schools = 12, min_students = 14, max_students = 18)
@@ -115,5 +117,5 @@ Before treating any fitted model as publication-ready, analysts should:
 3. inspect variance-component LRTs, empirical Bayes reliabilities, and Level-1
    variance homogeneity ($H$);
 4. archive the complete `.zip` publication bundle (`mlm_write_publication_bundle()`)
-   containing the Quarto report, standalone R script, LaTeX equations, and APA
-   tables.
+   containing the Quarto report, standalone R script, LaTeX equations, residual
+   CSVs, and APA tables.

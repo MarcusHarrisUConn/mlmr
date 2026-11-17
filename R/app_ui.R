@@ -30,6 +30,16 @@ step_header_ui <- function(num, title) {
   )
 }
 
+distribution_choices_vec <- function() {
+  c(
+    "Gaussian (Continuous)" = "gaussian",
+    "Binomial (Binary 0 / 1)" = "binomial",
+    "Poisson (Count)" = "poisson",
+    "Negative Binomial (Overdispersed Count)" = "negative binomial",
+    "Gamma (Positive Skewed)" = "Gamma"
+  )
+}
+
 app_ui <- function() {
   www_dir <- mlmr_www_dir()
   if (nzchar(www_dir)) {
@@ -71,13 +81,6 @@ app_ui <- function() {
       "))
     ),
     bslib::nav_spacer(),
-    bslib::nav_item(
-      shiny::div(
-        class = "nav-mode-switch",
-        title = "Enable non-Gaussian HGLMs (Binomial, Poisson, Negative Binomial, Gamma), cross-classified designs, and advanced estimation controls",
-        shiny::checkboxInput("advanced_mode", "Advanced / HGLM", FALSE)
-      )
-    ),
     bslib::nav_item(shiny::div(class = "theme-toggle", bslib::input_dark_mode(id = "theme_mode", mode = "light"))),
     bslib::nav_panel(
       "Data",
@@ -113,8 +116,23 @@ app_ui <- function() {
             step_header_ui(2, "Dependent Variable & Hierarchy"),
             shiny::uiOutput("data_outcome_selector"),
             shiny::selectInput(
+              "distribution_data",
+              "Outcome distribution",
+              choices = distribution_choices_vec(),
+              selected = "gaussian"
+            ),
+            shiny::conditionalPanel(
+              "input.distribution_data != 'gaussian'",
+              shiny::selectInput("link_data", "Link function", c("logit", "probit", "log", "inverse"), selected = "logit"),
+              shiny::div(
+                class = "preset-row",
+                shiny::actionButton("binary_preset_data", "Binary Logit Demo", class = "btn-outline-primary btn-sm"),
+                shiny::actionButton("poisson_preset_data", "Poisson Count Demo", class = "btn-outline-primary btn-sm")
+              )
+            ),
+            shiny::selectInput(
               "design_mode",
-              "Multilevel design (HLM structure)",
+              "Multilevel clustering design",
               choices = c(
                 "Two-level nested (e.g., students in schools)" = "two_level",
                 "Three-level nested (e.g., schools in districts)" = "three_level",
@@ -125,33 +143,6 @@ app_ui <- function() {
             ),
             shiny::uiOutput("cluster_selectors"),
             shiny::uiOutput("hierarchy_status_badge")
-          ),
-          shiny::uiOutput("mode_badge"),
-          shiny::conditionalPanel(
-            "input.advanced_mode == true",
-            shiny::div(
-              class = "advanced-panel-highlight",
-              shiny::strong("Advanced / HGLM Outcome Controls"),
-              shiny::p(class = "equation-subnote", "Configure non-Gaussian hierarchical generalized linear models (HGLM) or try a built-in preset:"),
-              shiny::div(
-                class = "preset-row",
-                shiny::actionButton("binary_preset_data", "Binary HGLM Demo", class = "btn-outline-primary btn-sm"),
-                shiny::actionButton("poisson_preset_data", "Count HGLM Demo", class = "btn-outline-primary btn-sm")
-              ),
-              shiny::selectInput(
-                "distribution",
-                "Outcome distribution (HGLM)",
-                choices = c(
-                  "Gaussian (Linear HLM)" = "gaussian",
-                  "Binomial / Bernoulli (Binary)" = "binomial",
-                  "Poisson (Count)" = "poisson",
-                  "Negative Binomial (Overdispersed Count)" = "negative binomial",
-                  "Gamma (Positive Skewed)" = "Gamma"
-                ),
-                selected = "gaussian"
-              ),
-              shiny::selectInput("link", "Link function", c("identity", "logit", "probit", "log", "inverse"), selected = "identity")
-            )
           )
         ),
         shiny::tabsetPanel(
@@ -170,7 +161,7 @@ app_ui <- function() {
               ),
               shiny::tags$strong("Independent Variables (Predictors) in Current Model"),
               shiny::div(class = "scroll-table", shiny::tableOutput("home_active_ivs_table")),
-              shiny::tags$strong("Live Symbolic HLM Equations (Pre-Fit)"),
+              shiny::tags$strong("Live Multilevel Equations (Pre-Fit)"),
               shiny::uiOutput("home_live_equations")
             ),
             bslib::card(
@@ -228,28 +219,26 @@ app_ui <- function() {
           width = 360,
           shiny::div(
             class = "builder-step",
-            step_header_ui(1, "Outcome (DV) & Preset Template"),
+            step_header_ui(1, "Outcome (DV) & Model Template"),
             shiny::uiOutput("outcome_selector"),
-            shiny::conditionalPanel(
-              "input.advanced_mode == false",
-              shiny::actionLink("enable_hglm_from_model", "Need binary or count HGLM? Enable Advanced / HGLM Mode")
+            shiny::selectInput(
+              "distribution",
+              "Outcome distribution",
+              choices = distribution_choices_vec(),
+              selected = "gaussian"
             ),
             shiny::conditionalPanel(
-              "input.advanced_mode == true",
+              "input.distribution != 'gaussian'",
+              shiny::selectInput("link", "Link function", c("logit", "probit", "log", "inverse"), selected = "logit"),
               shiny::div(
-                class = "advanced-panel-highlight",
-                shiny::strong("HGLM Family & Presets"),
-                shiny::div(
-                  class = "preset-row",
-                  shiny::actionButton("binary_preset", "Binary HGLM", class = "btn-outline-primary btn-sm"),
-                  shiny::actionButton("poisson_preset", "Count HGLM", class = "btn-outline-primary btn-sm")
-                ),
-                shiny::uiOutput("model_hglm_summary")
+                class = "preset-row",
+                shiny::actionButton("binary_preset", "Binary Logit Demo", class = "btn-outline-primary btn-sm"),
+                shiny::actionButton("poisson_preset", "Poisson Count Demo", class = "btn-outline-primary btn-sm")
               )
             ),
             shiny::selectInput(
               "model_preset",
-              "Quick-start HLM template",
+              "Model template",
               choices = c(
                 "Current custom model" = "custom",
                 "Null / unconditional model" = "null",
@@ -259,8 +248,8 @@ app_ui <- function() {
                 "Three-level nested model" = "three_level",
                 "Longitudinal growth model" = "longitudinal",
                 "Crossed school + teacher model" = "crossed",
-                "Logistic HGLM (binary)" = "logistic",
-                "Poisson HGLM (count)" = "poisson"
+                "Logistic mixed model (binary)" = "logistic",
+                "Poisson mixed model (count)" = "poisson"
               ),
               selected = "custom"
             ),
@@ -285,16 +274,18 @@ app_ui <- function() {
             class = "builder-step",
             step_header_ui(4, "Random-Effects Covariance & Interactions"),
             shiny::uiOutput("random_intercept_selector"),
-            shiny::uiOutput("random_group_selector"),
-            shiny::conditionalPanel(
-              "input.advanced_mode == true",
-              shiny::uiOutput("random_slope_selector")
-            ),
             shiny::checkboxInput("random_correlation", "Estimate covariances between random intercept & slopes (Tau)", TRUE),
             shiny::uiOutput("within_interaction_picker_ui"),
+            shiny::hr(style = "margin: 10px 0;"),
+            shiny::checkboxInput("advanced_mode", "Show advanced slope & custom interaction overrides", FALSE),
             shiny::conditionalPanel(
               "input.advanced_mode == true",
-              shiny::textInput("interactions", "Custom interaction terms (comma separated)", value = "ses:sector, homework:climate", placeholder = "ses:sector, ses:meanses")
+              shiny::div(
+                class = "advanced-panel-highlight",
+                shiny::uiOutput("random_group_selector"),
+                shiny::uiOutput("random_slope_selector"),
+                shiny::textInput("interactions", "Custom interaction terms (comma separated)", value = "ses:sector, homework:climate", placeholder = "ses:sector, ses:meanses")
+              )
             )
           )
         ),
@@ -305,7 +296,7 @@ app_ui <- function() {
             bslib::card_header(
               shiny::div(
                 style = "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;",
-                shiny::span("Live HLM 8 Equation Workspace (Updates as You Customize)"),
+                shiny::span("Live Equation Workspace (Updates as You Customize)"),
                 shiny::actionButton("fit_from_model_tab", "Estimate This Model", class = "btn-primary btn-sm")
               )
             ),
@@ -341,7 +332,7 @@ app_ui <- function() {
             "df_method",
             "Gaussian degrees of freedom",
             choices = c(
-              "Satterthwaite (lmerTest - HLM/SPSS style)" = "satterthwaite",
+              "Satterthwaite (lmerTest)" = "satterthwaite",
               "Kenward-Roger (lmerTest + pbkrtest)" = "kenward-roger",
               "Large-sample normal (lme4 default)" = "none"
             ),
@@ -398,13 +389,32 @@ app_ui <- function() {
             bslib::layout_columns(
               col_widths = c(6, 6),
               bslib::card(bslib::card_header("Fixed Effects (Model-Based SEs)"), shiny::uiOutput("apa_table_html")),
-              bslib::card(bslib::card_header("Fixed Effects (HLM Cluster-Robust Sandwich SEs)"), shiny::uiOutput("robust_table_html")),
+              bslib::card(bslib::card_header("Fixed Effects (Cluster-Robust Sandwich SEs)"), shiny::uiOutput("robust_table_html")),
               bslib::card(bslib::card_header("Variance Components & Random-Effect LRTs"), shiny::uiOutput("variance_table_html"), shiny::div(class = "scroll-table", shiny::tableOutput("variance_lrt_table"))),
-              bslib::card(bslib::card_header("HLM Random-Coefficient Reliabilities"), shiny::uiOutput("reliability_table_html")),
+              bslib::card(bslib::card_header("Empirical Bayes Random-Coefficient Reliabilities"), shiny::uiOutput("reliability_table_html")),
               bslib::card(bslib::card_header("Intraclass Correlations (ICC)"), shiny::uiOutput("icc_table_html")),
               bslib::card(bslib::card_header("Variance Explained (Nakagawa R2)"), shiny::uiOutput("r2_table_html")),
               bslib::card(bslib::card_header("Dummy Coding"), shiny::uiOutput("dummy_table_html")),
               bslib::card(bslib::card_header("Software and R Packages"), shiny::uiOutput("software_table_html"))
+            ),
+            bslib::card(
+              bslib::card_header("Multiparameter Fixed-Effect Hypothesis Test (Joint Wald Chi-Square)"),
+              shiny::p(class = "equation-subnote", "Test a composite null hypothesis across multiple fixed-effect coefficients simultaneously (e.g., main effect + cross-level interaction = 0):"),
+              bslib::layout_columns(
+                col_widths = c(7, 5),
+                shiny::uiOutput("wald_terms_selector"),
+                shiny::selectInput(
+                  "wald_vcov_type",
+                  "Covariance matrix",
+                  choices = c(
+                    "Cluster-robust sandwich (CR1)" = "CR1",
+                    "Model-based (GLS / ML)" = "model",
+                    "Cluster-robust unadjusted (CR0)" = "CR0"
+                  ),
+                  selected = "CR1"
+                )
+              ),
+              shiny::div(class = "scroll-table", shiny::tableOutput("wald_test_table"))
             ),
             shiny::uiOutput("pop_average_card_ui")
           ),
@@ -451,7 +461,12 @@ app_ui <- function() {
                 shiny::uiOutput("diagnostic_group_selector"),
                 shiny::hr(),
                 shiny::uiOutput("ranef_group_selector"),
-                shiny::uiOutput("ranef_term_selector")
+                shiny::uiOutput("ranef_term_selector"),
+                shiny::hr(),
+                shiny::tags$strong(style = "font-size:0.86rem;", "Export Residual Files"),
+                shiny::p(class = "equation-subnote", "Download complete-case Level-1 residuals or cluster empirical Bayes estimates as CSV:"),
+                shiny::downloadButton("download_level1_residuals", "Level-1 Residuals (.csv)", class = "btn-outline-primary btn-sm"),
+                shiny::downloadButton("download_cluster_residuals", "Cluster EB Residuals (.csv)", class = "btn-outline-primary btn-sm")
               ),
               shiny::div(
                 class = "results-page",
@@ -459,7 +474,7 @@ app_ui <- function() {
                   col_widths = c(6, 6),
                   bslib::card(bslib::card_header("Convergence & Fit Diagnostics"), shiny::tableOutput("diagnostics_table")),
                   bslib::card(
-                    bslib::card_header("HLM Homogeneity of Level-1 Variance Test"),
+                    bslib::card_header("Homogeneity of Level-1 Variance Test"),
                     shiny::div(class = "scroll-table", shiny::tableOutput("homogeneity_table"))
                   )
                 ),
@@ -508,7 +523,7 @@ app_ui <- function() {
           col_widths = c(6, 6),
           bslib::card(
             bslib::card_header("Publication Readiness Checklist & Archive"),
-            shiny::p("Export a complete reproducibility .zip archive (Quarto report, standalone R script, LaTeX, HTML tables, checklist CSV, and software CSV)."),
+            shiny::p("Export a complete reproducibility .zip archive (Quarto report, standalone R script, LaTeX, HTML tables, Level-1 & cluster residual CSVs, checklist CSV, and software CSV)."),
             shiny::div(class = "scroll-table", shiny::tableOutput("publication_checklist")),
             shiny::downloadButton("download_publication_bundle", "Download Bundle (.zip)", class = "btn-primary")
           ),
@@ -567,9 +582,9 @@ app_ui <- function() {
       shiny::div(
         class = "results-page",
         bslib::card(
-          bslib::card_header("Purpose & HLM 8 Parity"),
-          shiny::p("mlmr is a free, open-source Shiny interface and R package for specifying, fitting, teaching, and reporting multilevel models in R. It provides an HLM 8-style guided equation builder while producing transparent lme4 and lmerTest code that users can inspect, rerun, and publish."),
-          shiny::p("Key HLM 8 workflows supported include MDM-style variable auto-classification, live pre-fit Level-1/2/3 symbolic equations, group-mean and grand-mean centering, inline random-slope toggles, cross-level slope moderators, Huber-White cluster-robust sandwich SEs, random-coefficient reliabilities (lambda), variance-component LRT chi-square tests, Bartlett Level-1 variance homogeneity tests, unit-specific and population-average HGLM odds ratios, and one-click .zip reproducibility bundles.")
+          bslib::card_header("Purpose & Architecture"),
+          shiny::p("mlmr is an open-source Shiny interface and R package for specifying, fitting, teaching, and reporting multilevel and mixed-effects models in R. It pairs a level-by-level equation builder with transparent lme4 and lmerTest code that researchers and students can inspect, rerun, and publish."),
+          shiny::p("Supported workflows include empirical level classification, live pre-fit Level-1/Level-2/Level-3 symbolic equations, group-mean and grand-mean centering, inline random-slope toggles, cross-level slope moderators, Huber-White cluster-robust sandwich SEs, multiparameter fixed-effect Wald tests, empirical Bayes intercept and slope reliabilities, variance-component LRT chi-square tests, Level-1 variance homogeneity tests, unit-specific and population-average logistic odds ratios, residual CSV exports, and .zip reproducibility bundles.")
         ),
         bslib::card(
           bslib::card_header("Project Links"),
@@ -580,9 +595,9 @@ app_ui <- function() {
           )
         ),
         bslib::card(
-          bslib::card_header("HLM 8 Feature Parity Matrix"),
-          shiny::p("This matrix maps core HLM 8 workflows directly to mlmr capabilities."),
-          shiny::div(class = "scroll-table", shiny::tableOutput("hlm8_parity_table"))
+          bslib::card_header("Multilevel Capabilities Matrix"),
+          shiny::p("Overview of statistical capabilities, model structures, inferential outputs, and current scope."),
+          shiny::div(class = "scroll-table", shiny::tableOutput("feature_matrix_table"))
         ),
         bslib::card(
           bslib::card_header("Deterministic Validation Benchmarks"),

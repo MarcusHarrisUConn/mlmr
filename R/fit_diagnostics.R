@@ -331,7 +331,7 @@ mlm_r2 <- function(result) {
   )
 }
 
-# HLM-style empirical Bayes random-coefficient reliability (Raudenbush & Bryk, 2002, Eq. 3.45):
+# Empirical Bayes random-coefficient reliability (Raudenbush & Bryk, 2002, Eq. 3.45):
 # Lambda_j = I_q - (I_q + sigma^-2 * T_g * Z_j' Z_j)^-1, averaged across clusters,
 # covering both random intercepts and random slopes.
 mlm_reliability <- function(result) {

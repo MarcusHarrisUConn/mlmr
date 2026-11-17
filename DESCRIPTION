@@ -2,8 +2,8 @@ Package: mlmr
 Title: A Guided Interface for Mixed-Effects and Multilevel Models
 Version: 0.1.0
 Authors@R: person("Marcus", "Harris", role = c("aut", "cre"), email = "marcus.harris.uconn@gmail.com")
-Description: Provides a guided HLM-style Shiny interface and reusable R helpers
-    for specifying, fitting, explaining, and reporting mixed-effects and
+Description: Provides a guided level-by-level Shiny interface and reusable R
+    helpers for specifying, fitting, explaining, and reporting mixed-effects and
     multilevel models with 'lme4' (Bates, Maechler, Bolker, and Walker, 2015,
     <doi:10.18637/jss.v067.i01>). Supports grand-mean and cluster-mean centering
     (Enders and Tofighi, 2007, <doi:10.1037/1082-989X.12.2.121>), nested,

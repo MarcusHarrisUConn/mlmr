@@ -11,7 +11,7 @@ the app, not from an experimental working tree.
   - Suggested filename: `mlmr-data-overview.png`
 - [ ] Model builder with outcome, predictor levels, centering, interactions,
       and random effects visible.
-  - Purpose: show the HLM-style model specification workflow.
+  - Purpose: show the guided level-by-level model specification workflow.
   - Suggested filename: `mlmr-model-builder.png`
 - [ ] Estimate tab with model-readiness checks.
   - Purpose: show guardrails before fitting custom models.
@@ -31,7 +31,7 @@ the app, not from an experimental working tree.
 - [ ] Report & Code tab showing the publication checklist and methods text.
   - Purpose: show reproducibility and manuscript support.
   - Suggested filename: `mlmr-publication-bundle.png`
-- [ ] About tab with HLM-style feature parity and validation benchmarks.
+- [ ] About tab with multilevel capabilities matrix and validation benchmarks.
   - Purpose: show software scope and reviewer-facing validation evidence.
   - Suggested filename: `mlmr-validation-scope.png`
 

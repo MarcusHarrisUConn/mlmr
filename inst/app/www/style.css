@@ -761,39 +761,7 @@ pre {
 }
 
 
-/* HLM 8 Blueprint & Guided Equation Builder Styles */
-.nav-mode-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  margin-right: 6px;
-  border-radius: 999px;
-  border: 1px solid var(--mlmr-line);
-  background: rgba(255, 255, 255, 0.55);
-  font-size: 0.86rem;
-  font-weight: 600;
-  color: var(--mlmr-navy);
-}
-
-.nav-mode-switch .form-check {
-  margin-bottom: 0;
-  min-height: auto;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.nav-mode-switch .form-check-input {
-  margin-top: 0;
-  cursor: pointer;
-}
-
-.nav-mode-switch .form-check-label {
-  cursor: pointer;
-  user-select: none;
-}
-
+/* Multilevel Blueprint & Guided Equation Builder Styles */
 .blueprint-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -874,7 +842,7 @@ pre {
   font-weight: 700;
 }
 
-.hlm-var-row {
+.mlm-var-row {
   border: 1px solid var(--mlmr-line);
   border-radius: 6px;
   padding: 7px 9px;
@@ -882,7 +850,7 @@ pre {
   background: #fbf9f4;
 }
 
-.hlm-var-header {
+.mlm-var-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -892,7 +860,7 @@ pre {
   color: var(--mlmr-ink);
 }
 
-.hlm-var-row .form-group {
+.mlm-var-row .form-group {
   margin-bottom: 4px;
 }
 
@@ -922,12 +890,6 @@ pre {
   background: #fdf3e7;
   border: 1px solid #d9a566;
   color: #663c00;
-}
-
-[data-bs-theme="dark"] .nav-mode-switch {
-  background: #17232d;
-  border-color: #4b7582;
-  color: #edf3f5;
 }
 
 [data-bs-theme="dark"] .blueprint-tile {
@@ -966,12 +928,12 @@ pre {
   background: #2f6c78;
 }
 
-[data-bs-theme="dark"] .hlm-var-row {
+[data-bs-theme="dark"] .mlm-var-row {
   background: #182633;
   border-color: #344b5e;
 }
 
-[data-bs-theme="dark"] .hlm-var-header {
+[data-bs-theme="dark"] .mlm-var-header {
   color: #edf3f5;
 }
 

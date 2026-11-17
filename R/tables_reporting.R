@@ -373,7 +373,7 @@ apa_r2_html <- function(result, table_number = 5, title = "Model Variance Explai
   )
   rel_note <- if (nrow(rel)) {
     paste(
-      "HLM random-coefficient reliability (mean [range]):",
+      "Empirical Bayes random-coefficient reliability (mean [range]):",
       paste(sprintf("%s %s = %.3f [%.3f, %.3f]", rel$Group, rel$Term, rel$Mean_Reliability, rel$Min_Reliability, rel$Max_Reliability), collapse = "; "),
       "."
     )
@@ -391,7 +391,7 @@ apa_r2_html <- function(result, table_number = 5, title = "Model Variance Explai
   )
 }
 
-apa_reliability_html <- function(result, table_number = "5b", title = "HLM Random-Coefficient Reliability Estimates") {
+apa_reliability_html <- function(result, table_number = "5b", title = "Empirical Bayes Random-Coefficient Reliability Estimates") {
   rel <- mlm_reliability(result)
   if (!nrow(rel)) {
     return(apa_html_table(
@@ -717,7 +717,7 @@ manuscript_report_markdown <- function(result, REML = NULL, optimizer = NULL, ma
     "",
     md_pipe_table(fixed),
     "",
-    "## Fixed Effects With Cluster-Robust Standard Errors (HLM CR1)",
+    "## Fixed Effects With Cluster-Robust Standard Errors (CR1)",
     "",
     md_pipe_table(tryCatch(mlm_robust_se(result), error = function(e) data.frame())),
     "",
@@ -820,6 +820,8 @@ mlm_write_publication_bundle <- function(result, file, REML = NULL, optimizer = 
     "- `mlmr_apa_tables.html`: Standalone APA-styled HTML tables (also opens cleanly in Word).",
     "- `reproducibility_checklist.csv`: Reviewer-facing reproducibility audit.",
     "- `software_versions.csv`: Exact R and package versions recorded for the session.",
+    "- `level1_residuals.csv`: Complete-case Level-1 observed values, fitted values, and residuals.",
+    "- `cluster_eb_residuals.csv`: Cluster-level empirical Bayes random effects and posterior standard errors.",
     "",
     "## Methods Text",
     "",
@@ -834,6 +836,7 @@ mlm_write_publication_bundle <- function(result, file, REML = NULL, optimizer = 
     bundle$software_statement
   )
 
+  res_files <- mlm_residual_files(result)
   writeLines(readme_lines, file.path(bundle_root, "README_bundle.md"), useBytes = TRUE)
   writeLines(manuscript_report_markdown(result, REML, optimizer, maxfun), file.path(bundle_root, "mlmr_model_report.qmd"), useBytes = TRUE)
   writeLines(paste(bundle$reproducible_code, collapse = "\n"), file.path(bundle_root, "mlmr_reproducible_analysis.R"), useBytes = TRUE)
@@ -841,6 +844,8 @@ mlm_write_publication_bundle <- function(result, file, REML = NULL, optimizer = 
   writeLines(apa_tables_html_document(result, exponentiate = TRUE), file.path(bundle_root, "mlmr_apa_tables.html"), useBytes = TRUE)
   utils::write.csv(bundle$reproducibility_check, file.path(bundle_root, "reproducibility_checklist.csv"), row.names = FALSE)
   utils::write.csv(mlm_software_table(packages = pkgs), file.path(bundle_root, "software_versions.csv"), row.names = FALSE)
+  utils::write.csv(res_files$level1, file.path(bundle_root, "level1_residuals.csv"), row.names = FALSE)
+  utils::write.csv(res_files$cluster, file.path(bundle_root, "cluster_eb_residuals.csv"), row.names = FALSE)
 
   abs_target <- normalizePath(dirname(file), winslash = "/", mustWork = TRUE)
   target_zip <- file.path(abs_target, basename(file))

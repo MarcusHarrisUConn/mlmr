@@ -44,7 +44,7 @@ test_that("compare_models_lrt computes likelihood-ratio tests and catches incomp
   expect_false(cmp_bad_n$ok)
 })
 
-test_that("HLM 8 inferential companions (robust SE, variance LRTs, homogeneity H, population-average ORs) work accurately", {
+test_that("Robust SEs, multiparameter Wald tests, variance LRTs, homogeneity H, residual files, and marginal ORs work accurately", {
   res <- quiet_fit(two_level_spec())
   rob_cr1 <- mlm_robust_se(res, type = "CR1")
   rob_cr0 <- mlm_robust_se(res, type = "CR0")
@@ -53,6 +53,16 @@ test_that("HLM 8 inferential companions (robust SE, variance LRTs, homogeneity H
   J <- rob_cr1$Clusters[[1]]
   expect_equal(rob_cr1$SE_Robust, rob_cr0$SE_Robust * sqrt(J / (J - 1)), tolerance = 1e-3)
   expect_identical(rob_cr1$df, rep(J - 1, nrow(rob_cr1)))
+
+  wt_mod <- mlm_wald_test(res, terms = c("sectorPublic", "ses_CWC:sectorPublic"), vcov_type = "model")
+  wt_cr1 <- mlm_wald_test(res, terms = c("sectorPublic", "ses_CWC:sectorPublic"), vcov_type = "CR1")
+  expect_identical(wt_mod$df, 2L)
+  expect_identical(wt_cr1$df, 2L)
+  expect_true(wt_mod$Chisq > 0 && wt_cr1$Chisq > 0)
+
+  rf <- mlm_residual_files(res)
+  expect_identical(nrow(rf$level1), stats::nobs(res$fit))
+  expect_true(all(c("EB_Estimate", "Posterior_SE") %in% names(rf$cluster)))
 
   vt <- mlm_variance_tests(res)
   expect_identical(vt$Term, c("(Intercept)", "ses_CWC"))

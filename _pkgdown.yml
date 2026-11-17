@@ -34,14 +34,15 @@ navbar:
         href: articles/supported-models.html
       - text: Equations and reporting
         href: articles/equations-and-reporting.html
-      - text: HLM-style parity and validation
-        href: articles/hlm-parity-and-validation.html
+      - text: Validation and benchmarks
+        href: articles/validation-and-benchmarks.html
 
 home:
   title: mlmr
   description: >
-    Open-source mixed-effects and multilevel modeling in R with a guided HLM-style
-    Shiny interface, live equations, APA-style tables, and reproducible exports.
+    Open-source mixed-effects and multilevel modeling in R with a guided
+    level-by-level Shiny interface, live equations, APA-style tables, and
+    reproducible exports.
 
 reference:
 - title: Package overview
@@ -58,18 +59,20 @@ reference:
   - mlm_formula
   - mlm_spec_equations
   - mlm_fit
-- title: HLM-style inference and diagnostics
+- title: Robust inference and diagnostics
   contents:
   - mlm_robust_se
+  - mlm_wald_test
   - mlm_variance_tests
   - mlm_homogeneity_test
   - mlm_population_average
+  - mlm_residual_files
   - mlm_r2
   - mlm_reliability
 - title: Scope and validation
   contents:
   - mlm_supported_models
-  - mlm_hlm8_parity
+  - mlm_feature_matrix
   - mlm_validation_benchmarks
   - mlm_validation_report
 - title: Report models
@@ -91,4 +94,4 @@ articles:
   - getting-started
   - supported-models
   - equations-and-reporting
-  - hlm-parity-and-validation
+  - validation-and-benchmarks

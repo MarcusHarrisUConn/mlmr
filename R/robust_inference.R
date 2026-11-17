@@ -1,26 +1,24 @@
-# HLM 8 statistical parity helpers:
-# - Cluster-robust Huber-White sandwich standard errors (Raudenbush & Bryk, 2002, Eq. 9.15)
+# Multilevel robust inference, multiparameter hypothesis testing, variance tests,
+# and residual export helpers:
+# - Cluster-robust Huber-White sandwich standard errors (Liang & Zeger, 1986; Raudenbush & Bryk, 2002, Eq. 9.15)
+# - Multiparameter joint Wald chi-square tests on fixed effects (general linear hypothesis testing)
 # - Variance-component likelihood-ratio tests with boundary-mixture p-values (Stram & Lee, 1994)
 # - Bartlett H test of homogeneity of Level-1 variance across clusters (Raudenbush & Bryk, 2002, p. 263)
-# - Unit-specific vs. population-average HGLM estimates for logit models (Zeger et al., 1988; R&B Ch. 10)
+# - Unit-specific vs. population-average marginal estimates for binary logit mixed models (Zeger et al., 1988)
+# - Level-1 and cluster-level empirical Bayes residual data frames
 
 top_level_cluster_vector <- function(fit) {
   flist <- lme4::getME(fit, "flist")
   cnms_groups <- unique(names(lme4::getME(fit, "cnms")))
   groups <- intersect(cnms_groups, names(flist))
   if (!length(groups)) groups <- names(flist)
-  # Highest nesting level has the fewest distinct clusters.
   n_units <- vapply(groups, function(g) nlevels(droplevels(flist[[g]])), integer(1))
   top_grp <- groups[[which.min(n_units)]]
   list(name = top_grp, factor = droplevels(flist[[top_grp]]))
 }
 
-mlm_robust_se <- function(result, type = c("CR1", "CR0")) {
+cluster_sandwich_vcov <- function(fit, type = c("CR1", "CR0")) {
   type <- match.arg(type)
-  fit <- unwrap_fit(result)
-  if (!inherits(fit, "merMod")) {
-    stop("`result` must be a fitted \"mlm_result\" or `lme4` model object.", call. = FALSE)
-  }
   X <- lme4::getME(fit, "X")
   beta <- lme4::fixef(fit)
   p <- ncol(X)
@@ -48,7 +46,6 @@ mlm_robust_se <- function(result, type = c("CR1", "CR0")) {
       meat <- meat + tcrossprod(uj)
     }
   } else {
-    # Working-score cluster sandwich on the linear predictor scale for GLMMs.
     w <- as.numeric(stats::weights(fit, type = "working"))
     r_work <- as.numeric(stats::resid(fit, type = "working"))
     for (idx in idx_by_grp) {
@@ -60,6 +57,24 @@ mlm_robust_se <- function(result, type = c("CR1", "CR0")) {
 
   scale_factor <- if (identical(type, "CR1")) J / (J - 1) else 1
   V_rob <- scale_factor * (B %*% meat %*% B)
+  dimnames(V_rob) <- list(colnames(X), colnames(X))
+  list(vcov = V_rob, vcov_model = B, cluster = cl_info$name, J = J)
+}
+
+mlm_robust_se <- function(result, type = c("CR1", "CR0")) {
+  type <- match.arg(type)
+  fit <- unwrap_fit(result)
+  if (!inherits(fit, "merMod")) {
+    stop("`result` must be a fitted \"mlm_result\" or `lme4` model object.", call. = FALSE)
+  }
+  X <- lme4::getME(fit, "X")
+  beta <- lme4::fixef(fit)
+  p <- ncol(X)
+  sw <- cluster_sandwich_vcov(fit, type = type)
+  V_rob <- sw$vcov
+  B <- sw$vcov_model
+  J <- sw$J
+
   se_model <- sqrt(pmax(0, diag(B)))
   se_rob <- sqrt(pmax(0, diag(V_rob)))
   stat_rob <- ifelse(se_rob > 0, beta / se_rob, NA_real_)
@@ -86,7 +101,7 @@ mlm_robust_se <- function(result, type = c("CR1", "CR0")) {
     Statistic = round(unname(stat_rob), 3),
     p = format_apa_p(p_rob),
     `95% CI` = sprintf("[%.2f, %.2f]", ci_low, ci_high),
-    Cluster = cl_info$name,
+    Cluster = sw$cluster,
     Clusters = J,
     check.names = FALSE,
     row.names = NULL,
@@ -100,7 +115,60 @@ mlm_robust_se <- function(result, type = c("CR1", "CR0")) {
   out
 }
 
-apa_robust_html <- function(result, table_number = "1b", title = "Fixed Effects With HLM Cluster-Robust Standard Errors") {
+# Joint multiparameter Wald chi-square test on a subset of fixed-effect coefficients
+# (e.g., testing composite null hypotheses such as gamma_01 = gamma_11 = 0).
+mlm_wald_test <- function(result, terms = NULL, vcov_type = c("model", "CR1", "CR0")) {
+  vcov_type <- match.arg(vcov_type)
+  fit <- unwrap_fit(result)
+  if (!inherits(fit, "merMod")) {
+    stop("`result` must be a fitted \"mlm_result\" or `lme4` model object.", call. = FALSE)
+  }
+  beta <- lme4::fixef(fit)
+  all_names <- names(beta)
+  if (is.null(terms)) {
+    terms <- setdiff(all_names, "(Intercept)")
+  }
+  terms <- intersect(unique(as.character(terms)), all_names)
+  if (!length(terms)) {
+    return(data.frame(
+      Hypothesis = character(),
+      Covariance = character(),
+      Chisq = numeric(),
+      df = integer(),
+      p = character(),
+      stringsAsFactors = FALSE
+    ))
+  }
+  V <- if (identical(vcov_type, "model")) {
+    M <- as.matrix(stats::vcov(fit))
+    dimnames(M) <- list(all_names, all_names)
+    M
+  } else {
+    cluster_sandwich_vcov(fit, type = vcov_type)$vcov
+  }
+  b_sub <- beta[terms]
+  V_sub <- V[terms, terms, drop = FALSE]
+  V_inv_b <- tryCatch(solve(V_sub, b_sub), error = function(e) qr.solve(V_sub, b_sub))
+  chisq_val <- max(0, as.numeric(crossprod(b_sub, V_inv_b)))
+  df_val <- length(terms)
+  p_val <- stats::pchisq(chisq_val, df = df_val, lower.tail = FALSE)
+  cov_label <- switch(
+    vcov_type,
+    model = "Model-based",
+    CR1 = "Cluster-robust (CR1)",
+    CR0 = "Cluster-robust (CR0)"
+  )
+  data.frame(
+    Hypothesis = paste(sprintf("%s = 0", terms), collapse = "; "),
+    Covariance = cov_label,
+    Chisq = round(chisq_val, 3),
+    df = as.integer(df_val),
+    p = format_apa_p(p_val),
+    stringsAsFactors = FALSE
+  )
+}
+
+apa_robust_html <- function(result, table_number = "1b", title = "Fixed Effects With Cluster-Robust Standard Errors") {
   rob <- tryCatch(mlm_robust_se(result, type = "CR1"), error = function(e) NULL)
   if (is.null(rob) || !nrow(rob)) {
     return(apa_html_table(
@@ -132,15 +200,14 @@ apa_robust_html <- function(result, table_number = "1b", title = "Fixed Effects 
     table_number = table_number,
     title = title,
     note = html_escape(sprintf(
-      "Huber-White CR1 sandwich standard errors clustered by %s (J = %s; Raudenbush & Bryk, 2002). Large divergences between model-based and robust SEs can indicate covariance or distributional misspecification.",
+      "Huber-White CR1 sandwich standard errors clustered by %s (J = %s; Liang & Zeger, 1986; Raudenbush & Bryk, 2002). Large divergences between model-based and robust SEs can indicate covariance or distributional misspecification.",
       cl_name, n_cl
     )),
     italic_columns = c("b", "df", "t", "p")
   )
 }
 
-# Single-term random-effect likelihood-ratio deletion tests matching HLM 8's
-# variance-component hypothesis testing table.
+# Single-term random-effect likelihood-ratio deletion tests for variance components.
 mlm_variance_tests <- function(result) {
   if (!inherits(result, "mlm_result")) {
     stop("`result` must be an \"mlm_result\" object returned by mlm_fit().", call. = FALSE)
@@ -168,7 +235,6 @@ mlm_variance_tests <- function(result) {
 
   rows <- lapply(seq_len(nrow(var_rows)), function(i) {
     grp <- var_rows$grp[[i]]
-    # lme4 suffixes duplicate group blocks as schoolid.1 when uncorrelated; strip suffix to find spec block.
     base_grp <- sub("\\.[0-9]+$", "", grp)
     term <- var_rows$var1[[i]]
     sd_est <- round(var_rows$sdcor[[i]], 4)
@@ -179,7 +245,6 @@ mlm_variance_tests <- function(result) {
       if (identical(term, "(Intercept)")) {
         reduced_spec$random[[base_grp]]$intercept <- FALSE
       } else {
-        # Match centered or raw slope name back to spec$fixed name
         orig_slopes <- reduced_spec$random[[base_grp]]$slopes %||% character()
         eff_map <- stats::setNames(orig_slopes, unname(effective_fixed_terms(spec$fixed[orig_slopes])))
         target_orig <- if (term %in% names(eff_map)) eff_map[[term]] else term
@@ -220,7 +285,6 @@ mlm_variance_tests <- function(result) {
         df_red <- attr(stats::logLik(red_fit), "df")
         chisq_val <- max(0, 2 * (ll_full - ll_red))
         df_diff <- as.integer(max(1L, df_full - df_red))
-        # Boundary mixture p-value (Stram & Lee, 1994): 0.5*Chisq(df-1) + 0.5*Chisq(df)
         p_upper <- stats::pchisq(chisq_val, df = df_diff, lower.tail = FALSE)
         p_lower <- if (df_diff == 1L) {
           if (chisq_val <= 0) 1 else 0
@@ -230,7 +294,6 @@ mlm_variance_tests <- function(result) {
         p_mix <- 0.5 * p_lower + 0.5 * p_upper
       }
     } else if (is_gaussian_fit(fit)) {
-      # Compare single random-effect block against OLS lm() via ML log-likelihood
       fit_ml <- if (isTRUE(lme4::isREML(fit))) {
         suppressWarnings(suppressMessages(stats::update(fit, REML = FALSE, data = result$data)))
       } else {
@@ -288,7 +351,6 @@ mlm_homogeneity_test <- function(result) {
   flist <- lme4::getME(fit, "flist")
   cnms_groups <- unique(names(lme4::getME(fit, "cnms")))
   groups <- intersect(cnms_groups, names(flist))
-  # Lowest cluster level has the most units
   n_units <- vapply(groups, function(g) nlevels(droplevels(flist[[g]])), integer(1))
   l2_name <- groups[[which.max(n_units)]]
   grp <- droplevels(flist[[l2_name]])
@@ -300,7 +362,6 @@ mlm_homogeneity_test <- function(result) {
   df_vec <- integer()
   for (idx in idx_list) {
     Xj <- X[idx, , drop = FALSE]
-    # Keep columns that vary within this cluster plus intercept
     keep_cols <- vapply(seq_len(ncol(Xj)), function(k) {
       col <- Xj[, k]
       all(col == 1) || length(unique(col)) > 1L
@@ -383,4 +444,45 @@ mlm_population_average <- function(result) {
     OR_PopAverage = sprintf("%.2f [%.2f, %.2f]", exp(b_pa), exp(ci_pa_low), exp(ci_pa_high)),
     stringsAsFactors = FALSE
   )
+}
+
+# Level-1 and cluster-level empirical Bayes residual tables for export and downstream checking.
+mlm_residual_files <- function(result) {
+  if (!inherits(result, "mlm_result")) {
+    stop("`result` must be an \"mlm_result\" object returned by mlm_fit().", call. = FALSE)
+  }
+  l1 <- diagnostic_frame(result)
+  if (is_gaussian_fit(result$fit)) {
+    sig <- stats::sigma(result$fit)
+    l1$sigma <- sig
+    l1$std_residual <- if (is.finite(sig) && sig > 0) l1$residual / sig else NA_real_
+  } else {
+    l1$pearson_residual <- as.numeric(stats::residuals(result$fit, type = "pearson"))
+  }
+
+  re_df <- as.data.frame(lme4::ranef(result$fit, condVar = TRUE))
+  cluster_df <- if (nrow(re_df)) {
+    data.frame(
+      Group = as.character(re_df$grpvar),
+      Unit = as.character(re_df$grp),
+      Term = as.character(re_df$term),
+      EB_Estimate = round(re_df$condval, 5),
+      Posterior_SE = round(re_df$condsd, 5),
+      CI_95_Low = round(re_df$condval - 1.96 * re_df$condsd, 5),
+      CI_95_High = round(re_df$condval + 1.96 * re_df$condsd, 5),
+      stringsAsFactors = FALSE
+    )
+  } else {
+    data.frame(
+      Group = character(),
+      Unit = character(),
+      Term = character(),
+      EB_Estimate = numeric(),
+      Posterior_SE = numeric(),
+      CI_95_Low = numeric(),
+      CI_95_High = numeric(),
+      stringsAsFactors = FALSE
+    )
+  }
+  list(level1 = l1, cluster = cluster_df)
 }

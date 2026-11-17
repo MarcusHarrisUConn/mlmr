@@ -38,7 +38,7 @@ public_files <- c(
   "vignettes/getting-started.Rmd",
   "vignettes/supported-models.Rmd",
   "vignettes/equations-and-reporting.Rmd",
-  "vignettes/hlm-parity-and-validation.Rmd"
+  "vignettes/validation-and-benchmarks.Rmd"
 )
 
 local_path_pattern <- "C:\\\\Users|AppData|mah22013|/Users/marcusharris"
@@ -57,7 +57,7 @@ required_vignettes <- c(
   "getting-started",
   "supported-models",
   "equations-and-reporting",
-  "hlm-parity-and-validation"
+  "validation-and-benchmarks"
 )
 
 vignette_paths <- file.path("vignettes", paste0(required_vignettes, ".Rmd"))

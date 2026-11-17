@@ -34,7 +34,7 @@ mlm_equations <- function(result) {
   )
 }
 
-# Subscript indices are concatenated HLM-style (gamma_10) unless an index
+# Subscript indices are concatenated (gamma_10) unless an index
 # needs two digits, in which case they are comma separated.
 equation_index <- function(index) {
   if (any(index > 9)) paste(index, collapse = ",") else paste(index, collapse = "")
@@ -637,7 +637,7 @@ render_tau_labeled_html <- function(result) {
 }
 
 
-# Pre-fit symbolic HLM 8 equation builder directly from an `mlm_spec` object
+# Pre-fit symbolic multilevel equation builder directly from an `mlm_spec` object
 # (< 1 ms via model.matrix without calling lmer/glmer), powering live equation
 # previews on the Home Page and Guided Model Builder before fitting.
 mlm_spec_equations <- function(spec, data = spec$data) {
@@ -917,7 +917,7 @@ mlm_spec_equations <- function(spec, data = spec$data) {
       combined = combined,
       tau = tau_strs,
       notation = if (n_levels == 2L) "two-level hierarchical" else "three-level hierarchical",
-      note = "Live HLM equation preview generated from your current variable, centering, random-slope, and moderator selections."
+      note = "Live multilevel equation preview generated from your current variable, centering, random-slope, and moderator selections."
     ))
   }
 

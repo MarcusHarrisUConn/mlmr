@@ -191,7 +191,7 @@ test_that("per-group random slopes persist across grouping factors and LRT compa
   })
 })
 
-test_that("HLM 8 design_mode, inline random-slope toggles, cross-level moderators, and Advanced HGLM mode work", {
+test_that("design_mode, inline random-slope toggles, cross-level moderators, and direct non-Gaussian distributions work", {
   skip_on_cran()
   app_obj <- mlmr:::mlmr_shiny_app()
   suppressWarnings(suppressMessages(shiny::testServer(app_obj, {
@@ -204,6 +204,8 @@ test_that("HLM 8 design_mode, inline random-slope toggles, cross-level moderator
       cluster_l3 = "districtid",
       outcome_data = "mathscore",
       outcome = "mathscore",
+      distribution = "gaussian",
+      link = "identity",
       level1_terms = c("ses", "homework"),
       level2_terms = "sector",
       level3_terms = "districtses",
@@ -221,9 +223,9 @@ test_that("HLM 8 design_mode, inline random-slope toggles, cross-level moderator
     expect_match(f3, "(1 + ses_CWC | schoolid)", fixed = TRUE)
     expect_match(f3, "(1 | districtid)", fixed = TRUE)
 
-    # Toggle Advanced / HGLM mode and switch to Binomial Logit on passmath
+    # Switch directly to Binomial Logit on passmath WITHOUT needing advanced_mode = TRUE
     session$setInputs(
-      advanced_mode = TRUE,
+      advanced_mode = FALSE,
       design_mode = "two_level",
       cluster_l2 = "schoolid",
       outcome = "passmath",
@@ -247,5 +249,6 @@ test_that("HLM 8 design_mode, inline random-slope toggles, cross-level moderator
     session$flushReact()
     expect_s3_class(active_result(), "mlm_result")
     expect_no_error(output$pop_average_card_ui)
+    expect_no_error(output$wald_test_table)
   })))
 })

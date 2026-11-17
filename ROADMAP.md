@@ -14,8 +14,12 @@ refactoring, and CRAN/software-article validation milestones.
       preview.
 - [x] Optional Satterthwaite and Kenward-Roger denominator degrees of freedom
       via `lmerTest` and `pbkrtest`.
-- [x] Nakagawa marginal and conditional $R^2$ (`mlm_r2()`) and HLM-style
-      random-intercept reliability (`mlm_reliability()`).
+- [x] Nakagawa marginal and conditional $R^2$ (`mlm_r2()`), empirical Bayes
+      intercept & slope reliabilities (`mlm_reliability()`), cluster-robust
+      sandwich SEs (`mlm_robust_se()`), multiparameter Wald tests
+      (`mlm_wald_test()`), variance LRTs (`mlm_variance_tests()`), Level-1
+      variance homogeneity (`mlm_homogeneity_test()`), and residual exports
+      (`mlm_residual_files()`).
 - [x] Longitudinal growth-curve dataset (`example_longitudinal()`) and workflow
       template.
 - [x] Row/column-labeled Tau matrices, fixed-vs-random Coefficient Key roles,

@@ -152,7 +152,7 @@ test_that("manuscript report escapes formula pipes, wraps aligned equations, and
   res <- quiet_fit(two_level_spec())
   report <- paste(mlmr:::manuscript_report_markdown(res), collapse = "\n")
   expect_match(report, "## Coefficient Key", fixed = TRUE)
-  expect_match(report, "## Fixed Effects With Cluster-Robust Standard Errors (HLM CR1)", fixed = TRUE)
+  expect_match(report, "## Fixed Effects With Cluster-Robust Standard Errors (CR1)", fixed = TRUE)
   expect_match(report, "## Random-Coefficient Reliability", fixed = TRUE)
   expect_match(report, "gamma_11 | ses_CWC:sectorPublic", fixed = TRUE)
   expect_match(report, "(1 + ses_CWC \\| schoolid)", fixed = TRUE)
@@ -170,7 +170,9 @@ test_that("manuscript report escapes formula pipes, wraps aligned equations, and
     "mlmr_tables_and_equations.tex",
     "mlmr_apa_tables.html",
     "reproducibility_checklist.csv",
-    "software_versions.csv"
+    "software_versions.csv",
+    "level1_residuals.csv",
+    "cluster_eb_residuals.csv"
   ) %in% entries))
 })
 

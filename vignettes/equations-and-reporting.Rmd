@@ -23,8 +23,8 @@ both **before** and **after** estimation.
 
 ## Live Pre-Fit Symbolic Equations (`mlm_spec_equations()`)
 
-In HLM 8, analysts verify their Level-1, Level-2, and Level-3 equations while
-building the model—before pressing Run. `mlm_spec_equations()` inspects an
+Analysts can verify their Level-1, Level-2, and Level-3 equations while
+specifying the model—before pressing Fit. `mlm_spec_equations()` inspects an
 `mlm_spec` object and dataset to produce publication-grade symbolic LaTeX
 equations, plain-language level notes, combined mixed-model equations, and
 $\mathbf{T}$ covariance matrices without fitting the model:
@@ -66,11 +66,11 @@ eq <- mlm_latex_equations(result)
 eq$key
 ```
 
-## HLM 8 Inferential Companions and APA Reporting
+## Robust Inference, Variance Tests, and APA Reporting
 
 Beyond standard `lme4` Wald/Satterthwaite/Kenward-Roger fixed-effects tables
-(`mlm_apa_tables()`), `mlmr` provides the core reporting tables expected by
-HLM 8 users and journal reviewers:
+(`mlm_apa_tables()`), `mlmr` provides comprehensive multilevel inferential and
+diagnostic tables:
 
 ```{r reporting-helpers, eval = TRUE}
 # Marginal and conditional R^2 (Nakagawa, Johnson, & Schielzeth, 2017)
@@ -81,6 +81,9 @@ mlm_reliability(result)
 
 # Huber-White cluster-robust sandwich standard errors (CR1 and CR0)
 mlm_robust_se(result)
+
+# Multiparameter joint Wald test (e.g., testing sector main + slope moderation)
+mlm_wald_test(result, terms = c("sectorPublic", "ses_CWC:sectorPublic"))
 
 # Single-term random-effect LRT chi-square and boundary mixture p-values
 mlm_variance_tests(result)
@@ -93,14 +96,14 @@ When `lmerTest` is installed, passing `df_method = "satterthwaite"` (or
 `"kenward-roger"` with `pbkrtest`) adds denominator degrees of freedom and
 $t$-based confidence intervals to Gaussian APA tables.
 
-## Publication Bundle Archive
+## Residual Files and Publication Bundle Archive
 
-For manuscript supplements and open-science repositories,
-`mlm_write_publication_bundle()` writes a self-contained `.zip` archive
-containing the Quarto report (`.qmd`, including both Model-Based and
-Cluster-Robust fixed-effect tables), standalone reproducible R script (`.R`),
-raw LaTeX (`amsmath` + `graphicx`), Word/HTML APA tables, reproducibility
-checklist CSV, and software citation table:
+`mlm_residual_files()` extracts complete-case Level-1 residuals and
+cluster-level empirical Bayes estimates with posterior standard errors.
+`mlm_write_publication_bundle()` packages the Quarto report (`.qmd`),
+standalone reproducible R script (`.R`), raw LaTeX (`amsmath` + `graphicx`),
+Word/HTML APA tables, Level-1 and cluster residual CSVs, reproducibility
+checklist CSV, and software citation table into a single `.zip` archive:
 
 ```{r bundle-example, eval = FALSE}
 mlm_write_publication_bundle(result, "mlmr_publication_bundle.zip")
