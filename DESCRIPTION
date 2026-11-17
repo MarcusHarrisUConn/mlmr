@@ -2,19 +2,21 @@ Package: mlmr
 Title: A Guided Interface for Mixed-Effects and Multilevel Models
 Version: 0.1.0
 Authors@R: person("Marcus", "Harris", role = c("aut", "cre"), email = "marcus.harris.uconn@gmail.com")
-Description: Provides a guided Shiny interface and reusable R helpers for
-    specifying, fitting, explaining, and reporting mixed-effects and multilevel
-    models with 'lme4' (Bates, Maechler, Bolker, and Walker, 2015,
-    <doi:10.18637/jss.v067.i01>). The package supports grand-mean and
-    cluster-mean centering (Enders and Tofighi, 2007,
-    <doi:10.1037/1082-989X.12.2.121>), nested, longitudinal, and crossed
-    random-effects structures, interaction terms, optional Satterthwaite and
-    Kenward-Roger denominator degrees of freedom via 'lmerTest' (Kuznetsova,
-    Brockhoff, and Christensen, 2017, <doi:10.18637/jss.v082.i13>), marginal
-    and conditional R-squared (Nakagawa, Johnson, and Schielzeth, 2017,
-    <doi:10.1098/rsif.2017.0213>), random-intercept reliability, level-by-level
-    and combined equations, APA-style tables, diagnostics, reproducible R code,
-    and publication archive bundles.
+Description: Provides a guided HLM-style Shiny interface and reusable R helpers
+    for specifying, fitting, explaining, and reporting mixed-effects and
+    multilevel models with 'lme4' (Bates, Maechler, Bolker, and Walker, 2015,
+    <doi:10.18637/jss.v067.i01>). Supports grand-mean and cluster-mean centering
+    (Enders and Tofighi, 2007, <doi:10.1037/1082-989X.12.2.121>), nested,
+    longitudinal, and crossed random-effects structures, cross-level slope
+    moderation, optional Satterthwaite and Kenward-Roger denominator degrees of
+    freedom via 'lmerTest' (Kuznetsova, Brockhoff, and Christensen, 2017,
+    <doi:10.18637/jss.v082.i13>), Huber-White cluster-robust sandwich standard
+    errors, empirical Bayes random-coefficient reliabilities, variance-component
+    likelihood-ratio and homogeneity tests (Raudenbush and Bryk, 2002,
+    ISBN:9780761919049), marginal and conditional R-squared (Nakagawa, Johnson,
+    and Schielzeth, 2017, <doi:10.1098/rsif.2017.0213>), live pre-fit and fitted
+    equations, APA-style tables, diagnostics, and reproducible publication
+    archive bundles.
 License: MIT + file LICENSE
 URL: https://marcusharrisphd.com/mlmr/, https://github.com/MarcusHarrisUConn/mlmr
 BugReports: https://github.com/MarcusHarrisUConn/mlmr/issues

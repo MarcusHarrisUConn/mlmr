@@ -88,8 +88,9 @@ test_that("mlm_r2 and mlm_reliability compute valid effect-size and reliability 
   expect_true(r2_g$R2_conditional >= r2_g$R2_marginal && r2_g$R2_conditional <= 1)
 
   rel_g <- mlm_reliability(res_gauss)
-  expect_identical(rel_g$Group, "schoolid")
-  expect_true(rel_g$Mean_Reliability > 0 && rel_g$Mean_Reliability < 1)
+  expect_identical(unique(rel_g$Group), "schoolid")
+  expect_identical(rel_g$Term, c("(Intercept)", "ses_CWC"))
+  expect_true(all(rel_g$Mean_Reliability > 0 & rel_g$Mean_Reliability < 1))
 
   logit <- quiet_fit(mlm_spec(
     "passmath", "binomial", "logit",
@@ -151,6 +152,8 @@ test_that("manuscript report escapes formula pipes, wraps aligned equations, and
   res <- quiet_fit(two_level_spec())
   report <- paste(mlmr:::manuscript_report_markdown(res), collapse = "\n")
   expect_match(report, "## Coefficient Key", fixed = TRUE)
+  expect_match(report, "## Fixed Effects With Cluster-Robust Standard Errors (HLM CR1)", fixed = TRUE)
+  expect_match(report, "## Random-Coefficient Reliability", fixed = TRUE)
   expect_match(report, "gamma_11 | ses_CWC:sectorPublic", fixed = TRUE)
   expect_match(report, "(1 + ses_CWC \\| schoolid)", fixed = TRUE)
   expect_match(report, "\\begin{aligned}", fixed = TRUE)

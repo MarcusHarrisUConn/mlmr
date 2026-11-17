@@ -488,3 +488,115 @@ imputation_repro_code <- function(spec, formula = NULL, m = 20, maxit = 20, seed
     "summary(pooled_fixed, conf.int = TRUE)"
   )
 }
+
+
+# Auto-classifies every variable in `data` relative to the active clustering
+# hierarchy so users can immediately see Dependent Variable, Cluster IDs,
+# Level-1 IVs (vary within clusters), and Level-2/3 IVs (constant within clusters).
+auto_classify_variables_table <- function(data, spec) {
+  groups <- intersect(unlist(spec$grouping, use.names = FALSE), names(data))
+  # Order groups from most clusters (Level 2) to fewest clusters (Level 3)
+  if (length(groups) > 1L) {
+    n_u <- vapply(groups, function(g) length(unique(stats::na.omit(data[[g]]))), integer(1))
+    groups <- groups[order(-n_u)]
+  }
+  infer_empirical_level <- function(var) {
+    if (identical(var, spec$outcome)) return("Dependent Variable (Y)")
+    if (var %in% groups) {
+      pos <- match(var, groups)
+      if (identical(spec$structure, "crossed")) return(sprintf("Crossed Cluster ID (%s)", pos))
+      return(sprintf("Level-%s Cluster ID", pos + 1L))
+    }
+    col <- data[[var]]
+    n_uniq <- length(unique(col[!is.na(col)]))
+    if (n_uniq == nrow(data) && (is.character(col) || is.factor(col))) {
+      return("Observation / Row ID")
+    }
+    if (!length(groups)) return("Predictor candidate")
+    if (!constant_within(col, data[[groups[[1]]]])) {
+      return(sprintf("Level-1 candidate (varies within %s)", groups[[1]]))
+    }
+    if (length(groups) >= 2L && !constant_within(col, data[[groups[[2]]]])) {
+      return(sprintf("Level-2 candidate (constant in %s; varies in %s)", groups[[1]], groups[[2]]))
+    }
+    if (length(groups) >= 2L) {
+      return(sprintf("Level-3 candidate (constant in %s & %s)", groups[[1]], groups[[2]]))
+    }
+    sprintf("Level-2 candidate (constant within %s)", groups[[1]])
+  }
+
+  active_role <- function(var) {
+    if (identical(var, spec$outcome)) return(sprintf("Outcome (%s)", spec$distribution))
+    if (var %in% groups) return("Grouping / Random-effect ID")
+    if (var %in% names(spec$fixed)) {
+      ctr <- spec$fixed[[var]]$center %||% "none"
+      ctr_lbl <- switch(ctr, CWC = "Group-mean centered (CWC)", GMC = "Grand-mean centered (GMC)", "Uncentered")
+      sl_grps <- names(Filter(function(r) var %in% (r$slopes %||% character()), spec$random))
+      sl_lbl <- if (length(sl_grps)) sprintf("; random slope across %s", paste(sl_grps, collapse = ", ")) else ""
+      mods <- unlist(lapply(spec$interactions, function(p) if (var %in% p) setdiff(p, var) else character()))
+      mod_lbl <- if (length(mods)) sprintf("; interacts with %s", paste(unique(mods), collapse = ", ")) else ""
+      return(paste0("Independent Variable (", ctr_lbl, sl_lbl, mod_lbl, ")"))
+    }
+    "Not in current model"
+  }
+
+  do.call(rbind, lapply(names(data), function(var) {
+    col <- data[[var]]
+    type_str <- if (is.numeric(col)) {
+      sprintf("Numeric (M = %.2f, SD = %.2f)", mean(col, na.rm = TRUE), stats::sd(col, na.rm = TRUE))
+    } else {
+      sprintf("Categorical (%s levels)", length(unique(col[!is.na(col)])))
+    }
+    data.frame(
+      Variable = var,
+      Type = type_str,
+      `Empirical Level in Data` = infer_empirical_level(var),
+      `Current Model Role` = active_role(var),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+  }))
+}
+
+# Concise table of ONLY the active Independent Variables (Predictors) in `spec`,
+# displayed prominently on Data > Overview so DV and IVs are obvious at launch.
+active_predictors_blueprint_table <- function(data, spec) {
+  fixed <- names(spec$fixed)
+  if (!length(fixed)) {
+    return(data.frame(
+      `Independent Variable (IV)` = "(Intercept-only / unconditional model)",
+      `Declared Level` = "-",
+      Centering = "-",
+      `Slope / Moderation` = "Random intercept only; add predictors on the Model tab",
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    ))
+  }
+  declared <- spec$predictor_levels %||% list()
+  level_of <- function(v) {
+    hit <- names(Filter(function(xs) v %in% xs, declared))
+    if (length(hit)) hit[[1]] else "Assigned from data"
+  }
+  do.call(rbind, lapply(fixed, function(v) {
+    ctr <- spec$fixed[[v]]$center %||% "none"
+    ctr_text <- if (v %in% names(data) && !is.numeric(data[[v]])) {
+      sprintf("Factor (ref: %s)", first_or(levels(factor(data[[v]])), ""))
+    } else {
+      switch(ctr, CWC = "Group-mean (CWC)", GMC = "Grand-mean (GMC)", "Uncentered")
+    }
+    sl_grps <- names(Filter(function(r) v %in% (r$slopes %||% character()), spec$random))
+    partners <- unique(unlist(lapply(spec$interactions, function(p) if (v %in% p) setdiff(p, v) else character())))
+    role_parts <- c(
+      if (length(sl_grps)) sprintf("Random slope across %s", paste(sl_grps, collapse = ", ")) else "Fixed effect",
+      if (length(partners)) sprintf("interacts with %s", paste(partners, collapse = ", "))
+    )
+    data.frame(
+      `Independent Variable (IV)` = v,
+      `Declared Level` = level_of(v),
+      Centering = ctr_text,
+      `Slope / Moderation` = paste(role_parts, collapse = "; "),
+      check.names = FALSE,
+      stringsAsFactors = FALSE
+    )
+  }))
+}

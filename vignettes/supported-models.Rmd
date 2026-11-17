@@ -16,70 +16,104 @@ knitr::opts_chunk$set(
 
 ## Purpose
 
-`mlmr` is designed to make mixed-effects and multilevel models easier to
-specify, understand, teach, and report. The app is intentionally opinionated:
-it guides users through a declared modeling workflow while still exposing the
-underlying `lme4` formula, reproducible R code, equations, diagnostics, and
-manuscript-ready outputs.
+`mlmr` makes mixed-effects and multilevel models easier to specify, teach,
+diagnose, and report without hiding the underlying statistical machinery. Every
+model specified in the interface or R API compiles into an explicit `lme4` (or
+`lmerTest`) model accompanied by level-by-level equations, model-readiness
+checks, HLM 8 inferential companions, and reproducible R code.
 
-This article states the current software scope plainly so users know what is
-ready for routine use, what is advanced or experimental, and what remains future
-work.
+This article documents the four core clustering designs, Gaussian vs. HGLM
+scope, and statistical guardrails built into `mlmr`.
 
-## Current Production Path
+## Four Explicit Clustering Designs
 
-The strongest current workflow is a Gaussian mixed-effects model for nested or
-longitudinal educational, psychological, health, or organizational data. The app
-is especially well suited for:
+Both the Shiny interface (`design_mode`) and `mlm_spec()` organize multilevel
+designs into four transparent structures:
 
-- two-level nested models, such as students within schools;
-- three-level nested models, such as students within schools within districts;
-- longitudinal growth-curve models, such as waves nested within individuals;
-- per-grouping-factor random-intercept and random-slope models;
-- correlated or independent random-effects structures;
-- grand-mean and cluster-mean centering;
-- optional Satterthwaite or Kenward-Roger denominator degrees of freedom via
-  `lmerTest` and `pbkrtest`;
-- fixed interactions and cross-level interactions;
-- APA-style tables, Nakagawa $R^2$, random-intercept reliability, equations,
-  Tau matrices, diagnostics, and `.zip` reproducibility archives.
+1. **Two-Level Nested (`two_level`)**: Level-1 units nested within Level-2
+   clusters (e.g., students within schools, patients within clinics). Uses
+   classical $\beta_{qj}$ / $\gamma_{qs}$ hierarchical notation.
+2. **Three-Level Nested (`three_level`)**: Level-1 units nested within Level-2
+   clusters within Level-3 super-clusters (e.g., students within schools within
+   districts). Uses three-level $\pi_{qjk}$ / $\beta_{qsk}$ / $\gamma_{qst}$
+   notation.
+3. **Longitudinal / Repeated Measures (`longitudinal`)**: Repeated measurement
+   occasions nested within individuals (and optionally higher-level clusters),
+   with random growth trajectories (e.g., `wave` slopes).
+4. **Cross-Classified (`crossed`)**: Observations classified simultaneously by
+   two non-nested random factors (e.g., `schoolid` and `teacherid`), rendered in
+   mixed-model notation with separate $\mathbf{T}$ covariance blocks.
+
+## Current Production Path (Gaussian HLM)
+
+The primary production workflow covers Gaussian linear mixed models:
+
+- grand-mean (`GMC`), cluster-mean (`CWC`), and raw-metric predictor coding;
+- per-grouping-factor random intercepts and random slopes with correlated (`|`)
+  or diagonal/uncorrelated (`||`) $\mathbf{T}$ covariance structures;
+- within-level interactions and HLM 8 cross-level slope moderators;
+- large-sample normal, Satterthwaite (`lmerTest`), or Kenward-Roger (`pbkrtest`)
+  fixed-effect degrees of freedom;
+- Huber-White cluster-robust sandwich standard errors (`mlm_robust_se()` with
+  `CR1` small-sample correction or `CR0`);
+- empirical Bayes reliabilities ($\hat{\lambda}$) for both random intercepts and
+  random slopes (`mlm_reliability()`);
+- single-term random-effect likelihood-ratio $\chi^2$ tests with Stram-Lee
+  boundary mixture *p*-values (`mlm_variance_tests()`);
+- Bartlett's $H$ test for homogeneity of Level-1 residual variance across
+  clusters (`mlm_homogeneity_test()`).
 
 ## Supported Scope Table
-
-The scope table is available programmatically and rendered directly below:
 
 ```{r scope, eval = TRUE}
 knitr::kable(mlmr::mlm_supported_models())
 ```
 
-This table separates software support from statistical responsibility. A model
-can be available in the interface and still require careful evaluation of
-assumptions, cluster counts, convergence, and substantive interpretation.
+## Advanced / HGLM Workflows
 
-## Advanced Workflows
+Enabling **Advanced / HGLM** in the top navigation bar (or passing non-Gaussian
+`distribution` and `link` arguments to `mlm_spec()`) unlocks Hierarchical
+Generalized Linear Models estimated via Laplace / adaptive Gauss-Hermite
+approximation in `lme4::glmer()` / `lme4::glmer.nb()`:
 
-`mlmr` includes advanced pathways for GLMMs and non-nested random-effect
-structures because applied research often moves beyond strict nesting:
+- **Binomial (`logit`, `probit`, `cloglog`)**: reports link-scale log-odds/probit
+  coefficients, unit-specific odds ratios, cluster-robust sandwich standard
+  errors, and Zeger/HLM 8 population-average marginal coefficients and odds
+  ratios (`mlm_population_average()`);
+- **Poisson and Negative Binomial (`log`)**: reports log-rate coefficients and
+  exponentiated incidence rate ratios (`IRR`), with overdispersion checks;
+- **Gamma (`log`, `inverse`)**: positive skewed continuous outcomes.
 
-- binomial, Poisson, negative binomial, and Gamma GLMMs report exponentiated
-  coefficients (odds ratios or incidence rate ratios) and should be checked for
-  outcome coding, link scale, sparse cells, overdispersion, and convergence;
-- crossed random effects should be used only when the grouping variables truly
-  represent non-nested classifications;
-- longitudinal models support person-level random growth slopes, though closely
-  spaced waves may still require external residual autocorrelation checks;
-- weighted multiple-membership models remain outside the current `lme4`-backed
-  scope.
+```{r hglm-example, eval = TRUE}
+library(mlmr)
+
+dat <- example_hsb(n_schools = 12, min_students = 14, max_students = 18)
+spec_bin <- mlm_spec(
+  outcome = "passmath",
+  distribution = "binomial",
+  link = "logit",
+  fixed = list(ses = list(center = "CWC"), sector = list(center = "none")),
+  grouping = list(schoolid = "schoolid"),
+  random = list(schoolid = list(intercept = TRUE)),
+  data = dat
+)
+fit_bin <- suppressWarnings(mlm_fit(spec_bin))
+mlm_population_average(fit_bin)[, c(
+  "Predictor", "b_UnitSpecific", "OR_UnitSpecific",
+  "b_PopAverage", "OR_PopAverage"
+)]
+```
 
 ## Production Readiness Standard
 
-For a model to be treated as production analysis, users should be able to:
+Before treating any fitted model as publication-ready, analysts should:
 
-1. reproduce the fitted model from the exported R code;
-2. explain centering, interactions, degrees of freedom, and random-effects
-   choices;
-3. inspect fixed effects, variance components, ICCs, $R^2$, reliability, and
-   the Tau matrix;
-4. review diagnostics and convergence messages;
-5. export manuscript tables, equations, and software citations;
-6. archive a complete `.zip` publication bundle or Quarto report.
+1. verify pre-fit **Model Readiness** checks (cluster counts, within-cluster
+   variation for `CWC` predictors and random slopes, outcome coding);
+2. compare **Model-Based** and **Cluster-Robust (`CR1`)** standard errors to
+   gauge sensitivity to covariance or residual heteroscedasticity;
+3. inspect variance-component LRTs, empirical Bayes reliabilities, and Level-1
+   variance homogeneity ($H$);
+4. archive the complete `.zip` publication bundle (`mlm_write_publication_bundle()`)
+   containing the Quarto report, standalone R script, LaTeX equations, and APA
+   tables.

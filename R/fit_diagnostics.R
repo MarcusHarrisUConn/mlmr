@@ -331,68 +331,69 @@ mlm_r2 <- function(result) {
   )
 }
 
-# HLM-style empirical Bayes random-intercept reliability (Raudenbush & Bryk, 2002):
-# lambda_j = tau_00 / (tau_00 + sigma^2 / n_j), averaged across clusters.
+# HLM-style empirical Bayes random-coefficient reliability (Raudenbush & Bryk, 2002, Eq. 3.45):
+# Lambda_j = I_q - (I_q + sigma^-2 * T_g * Z_j' Z_j)^-1, averaged across clusters,
+# covering both random intercepts and random slopes.
 mlm_reliability <- function(result) {
   fit <- unwrap_fit(result)
   if (!inherits(fit, "merMod")) {
     stop("`result` must be a fitted \"mlm_result\" or `lme4` model object.", call. = FALSE)
   }
+  empty_df <- data.frame(
+    Group = character(),
+    Term = character(),
+    Units = integer(),
+    Variance = numeric(),
+    Mean_Reliability = numeric(),
+    Min_Reliability = numeric(),
+    Max_Reliability = numeric(),
+    stringsAsFactors = FALSE
+  )
   if (!is_gaussian_fit(fit)) {
-    return(data.frame(
-      Group = character(),
-      Units = integer(),
-      Intercept_Variance = numeric(),
-      Mean_Reliability = numeric(),
-      Min_Reliability = numeric(),
-      Max_Reliability = numeric(),
-      stringsAsFactors = FALSE
-    ))
+    return(empty_df)
   }
-  vc <- as.data.frame(lme4::VarCorr(fit))
+  vc_list <- lme4::VarCorr(fit)
   flist <- lme4::getME(fit, "flist")
+  X <- lme4::getME(fit, "X")
   sigma2 <- stats::sigma(fit)^2
-  is_int <- vc$grp != "Residual" & is.na(vc$var2) & !is.na(vc$var1) & vc$var1 == "(Intercept)"
-  int_rows <- vc[is_int, , drop = FALSE]
-  if (!nrow(int_rows)) {
-    return(data.frame(
-      Group = character(),
-      Units = integer(),
-      Intercept_Variance = numeric(),
-      Mean_Reliability = numeric(),
-      Min_Reliability = numeric(),
-      Max_Reliability = numeric(),
-      stringsAsFactors = FALSE
-    ))
+  if (!is.finite(sigma2) || sigma2 <= 0) return(empty_df)
+
+  rows <- list()
+  for (vc_name in names(vc_list)) {
+    T_mat <- as.matrix(vc_list[[vc_name]])
+    base_grp <- sub("\\.[0-9]+$", "", vc_name)
+    if (!base_grp %in% names(flist)) next
+    terms <- rownames(T_mat)
+    if (!all(terms %in% colnames(X))) next
+    q <- nrow(T_mat)
+    I_q <- diag(q)
+    grp_fac <- droplevels(flist[[base_grp]])
+    idx_by_grp <- split(seq_along(grp_fac), grp_fac)
+    lambda_mat <- matrix(NA_real_, nrow = length(idx_by_grp), ncol = q)
+    for (j in seq_along(idx_by_grp)) {
+      idx <- idx_by_grp[[j]]
+      Zj <- X[idx, terms, drop = FALSE]
+      ZtZ <- crossprod(Zj)
+      M <- I_q + (1 / sigma2) * (T_mat %*% ZtZ)
+      inv_M <- tryCatch(solve(M), error = function(e) diag(1, q))
+      Lam_j <- I_q - inv_M
+      lambda_mat[j, ] <- pmin(1, pmax(0, diag(Lam_j)))
+    }
+    for (k in seq_len(q)) {
+      vals <- lambda_mat[, k]
+      rows[[length(rows) + 1L]] <- data.frame(
+        Group = base_grp,
+        Term = terms[[k]],
+        Units = nrow(lambda_mat),
+        Variance = round(T_mat[k, k], 4),
+        Mean_Reliability = round(mean(vals, na.rm = TRUE), 3),
+        Min_Reliability = round(min(vals, na.rm = TRUE), 3),
+        Max_Reliability = round(max(vals, na.rm = TRUE), 3),
+        stringsAsFactors = FALSE
+      )
+    }
   }
-  rows <- lapply(seq_len(nrow(int_rows)), function(i) {
-    grp <- int_rows$grp[[i]]
-    tau00 <- int_rows$vcov[[i]]
-    if (!grp %in% names(flist)) return(NULL)
-    n_j <- as.numeric(table(droplevels(flist[[grp]])))
-    lambdas <- if (tau00 <= 0) rep(0, length(n_j)) else tau00 / (tau00 + sigma2 / n_j)
-    data.frame(
-      Group = grp,
-      Units = length(n_j),
-      Intercept_Variance = round(tau00, 4),
-      Mean_Reliability = round(mean(lambdas), 3),
-      Min_Reliability = round(min(lambdas), 3),
-      Max_Reliability = round(max(lambdas), 3),
-      stringsAsFactors = FALSE
-    )
-  })
-  rows <- Filter(Negate(is.null), rows)
-  if (!length(rows)) {
-    return(data.frame(
-      Group = character(),
-      Units = integer(),
-      Intercept_Variance = numeric(),
-      Mean_Reliability = numeric(),
-      Min_Reliability = numeric(),
-      Max_Reliability = numeric(),
-      stringsAsFactors = FALSE
-    ))
-  }
+  if (!length(rows)) return(empty_df)
   out <- do.call(rbind, rows)
   row.names(out) <- NULL
   out
@@ -650,8 +651,8 @@ interpretation_points <- function(result) {
   }
   if (!is.null(rel) && nrow(rel)) {
     pts <- c(pts, sprintf(
-      "Mean empirical Bayes random-intercept reliability: %s.",
-      paste(sprintf("%s = %.3f", rel$Group, rel$Mean_Reliability), collapse = "; ")
+      "Mean empirical Bayes random-coefficient reliability: %s.",
+      paste(sprintf("%s (%s) = %.3f", rel$Group, rel$Term, rel$Mean_Reliability), collapse = "; ")
     ))
   }
   pts

@@ -14,21 +14,22 @@ knitr::opts_chunk$set(
 )
 ```
 
-## Why Equations and Reproducible Reporting Matter
+## Connecting Symbolic Equations, `lme4` Formulas, and APA Outputs
 
-Multilevel models are typically taught through level-by-level notation before
-they are taught through R formula syntax. `mlmr` connects the fitted `lme4`
-formula, level-by-level equations, combined mixed-model equation, labeled Tau
-covariance matrices, APA tables, effect sizes, and reproducible R code.
+Multilevel models are taught and reviewed in level-by-level Raudenbush & Bryk
+notation ($\beta_{qj}$, $\gamma_{qs}$, $u_{qj}$, $r_{ij}$), yet estimated in R
+through mixed-model formulas. `mlmr` keeps both representations synchronized
+both **before** and **after** estimation.
 
-## Level-by-Level Equations and Coefficient Key
+## Live Pre-Fit Symbolic Equations (`mlm_spec_equations()`)
 
-`mlmr` assigns predictors to levels from the fitted data: a predictor constant
-within every unit of a grouping factor is placed at that cluster level, while
-cross-level interactions enter the equation for the lower-level slope they
-moderate:
+In HLM 8, analysts verify their Level-1, Level-2, and Level-3 equations while
+building the model—before pressing Run. `mlm_spec_equations()` inspects an
+`mlm_spec` object and dataset to produce publication-grade symbolic LaTeX
+equations, plain-language level notes, combined mixed-model equations, and
+$\mathbf{T}$ covariance matrices without fitting the model:
 
-```{r equations-example, eval = TRUE}
+```{r prefit-equations, eval = TRUE}
 library(mlmr)
 
 dat <- example_hsb(n_schools = 12, min_students = 10, max_students = 14)
@@ -46,43 +47,60 @@ spec <- mlm_spec(
   interactions = list(c("ses", "sector")),
   data = dat
 )
-result <- suppressWarnings(mlm_fit(spec))
-eq <- mlm_latex_equations(result)
-eq$level
-writeLines(strsplit(eq$equations[[2]], "\\\\ ", fixed = TRUE)[[1]])
+
+pre_eq <- mlm_spec_equations(spec)
+pre_eq$level
+writeLines(strsplit(pre_eq$equations[[2]], "\\\\ ", fixed = TRUE)[[1]])
 ```
 
-The coefficient key links each equation symbol to its fitted estimate and notes
-whether the corresponding coefficient carries a random effect or moderates a
-random slope:
+## Post-Fit Equations and Coefficient Key (`mlm_latex_equations()`)
 
-```{r equations-key, eval = TRUE}
+Once fitted, `mlm_latex_equations()` pairs the symbolic equations with a
+complete **Coefficient Key** mapping every hierarchical symbol ($\gamma_{00}$,
+$\gamma_{10}$, $\gamma_{11}$, …) to its `lme4` fixed-effect name, numeric
+estimate, and random-slope role:
+
+```{r postfit-equations, eval = TRUE}
+result <- suppressWarnings(mlm_fit(spec))
+eq <- mlm_latex_equations(result)
 eq$key
 ```
 
-## Effect Sizes, Reliability, and APA Tables
+## HLM 8 Inferential Companions and APA Reporting
 
-In addition to APA fixed-effects, dummy-coding, variance-component, and Gaussian
-ICC tables, `mlmr` computes marginal and conditional $R^2$ (Nakagawa, Johnson, &
-Schielzeth, 2017) and HLM-style empirical Bayes random-intercept reliability
-(Raudenbush & Bryk, 2002):
+Beyond standard `lme4` Wald/Satterthwaite/Kenward-Roger fixed-effects tables
+(`mlm_apa_tables()`), `mlmr` provides the core reporting tables expected by
+HLM 8 users and journal reviewers:
 
 ```{r reporting-helpers, eval = TRUE}
+# Marginal and conditional R^2 (Nakagawa, Johnson, & Schielzeth, 2017)
 mlm_r2(result)
+
+# Empirical Bayes reliabilities (lambda) for random intercepts AND slopes
 mlm_reliability(result)
+
+# Huber-White cluster-robust sandwich standard errors (CR1 and CR0)
+mlm_robust_se(result)
+
+# Single-term random-effect LRT chi-square and boundary mixture p-values
+mlm_variance_tests(result)
+
+# Bartlett H test of Level-1 residual variance homogeneity across clusters
+mlm_homogeneity_test(result)
 ```
 
 When `lmerTest` is installed, passing `df_method = "satterthwaite"` (or
 `"kenward-roger"` with `pbkrtest`) adds denominator degrees of freedom and
-$t$-based intervals to Gaussian APA tables.
+$t$-based confidence intervals to Gaussian APA tables.
 
 ## Publication Bundle Archive
 
 For manuscript supplements and open-science repositories,
-`mlm_write_publication_bundle()` packages the Quarto report, standalone R
-script, raw LaTeX (`amsmath` + `graphicx`), HTML/Word APA tables,
-reproducibility checklist CSV, and software version table into a single `.zip`
-archive:
+`mlm_write_publication_bundle()` writes a self-contained `.zip` archive
+containing the Quarto report (`.qmd`, including both Model-Based and
+Cluster-Robust fixed-effect tables), standalone reproducible R script (`.R`),
+raw LaTeX (`amsmath` + `graphicx`), Word/HTML APA tables, reproducibility
+checklist CSV, and software citation table:
 
 ```{r bundle-example, eval = FALSE}
 mlm_write_publication_bundle(result, "mlmr_publication_bundle.zip")

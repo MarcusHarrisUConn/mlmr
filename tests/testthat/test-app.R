@@ -190,3 +190,62 @@ test_that("per-group random slopes persist across grouping factors and LRT compa
     expect_length(model_history(), 0L)
   })
 })
+
+test_that("HLM 8 design_mode, inline random-slope toggles, cross-level moderators, and Advanced HGLM mode work", {
+  skip_on_cran()
+  app_obj <- mlmr:::mlmr_shiny_app()
+  suppressWarnings(suppressMessages(shiny::testServer(app_obj, {
+    session$setInputs(
+      use_example_data = TRUE,
+      example_dataset = "hsb",
+      strings_as_factors = TRUE,
+      design_mode = "three_level",
+      cluster_l2 = "schoolid",
+      cluster_l3 = "districtid",
+      outcome_data = "mathscore",
+      outcome = "mathscore",
+      level1_terms = c("ses", "homework"),
+      level2_terms = "sector",
+      level3_terms = "districtses",
+      slope_l1_ses = TRUE,
+      slope_l1_homework = FALSE,
+      mod_l1_ses = "sector",
+      mod_l1_homework = character(),
+      advanced_mode = FALSE
+    )
+    session$flushReact()
+    expect_identical(active_groups(), c("schoolid", "districtid"))
+    f3 <- paste(deparse(mlm_formula(spec_reactive()), width.cutoff = 500), collapse = " ")
+    expect_match(f3, "districtses_GMC", fixed = TRUE)
+    expect_match(f3, "ses_CWC:sector", fixed = TRUE)
+    expect_match(f3, "(1 + ses_CWC | schoolid)", fixed = TRUE)
+    expect_match(f3, "(1 | districtid)", fixed = TRUE)
+
+    # Toggle Advanced / HGLM mode and switch to Binomial Logit on passmath
+    session$setInputs(
+      advanced_mode = TRUE,
+      design_mode = "two_level",
+      cluster_l2 = "schoolid",
+      outcome = "passmath",
+      distribution = "binomial",
+      link = "logit",
+      level1_terms = "ses",
+      level2_terms = "sector",
+      level3_terms = character(),
+      slope_l1_ses = FALSE,
+      mod_l1_ses = character(),
+      interactions = "",
+      reml = FALSE,
+      df_method = "none",
+      optimizer = "bobyqa",
+      maxfun = 20000
+    )
+    session$flushReact()
+    expect_identical(spec_reactive()$distribution, "binomial")
+    expect_identical(spec_reactive()$link, "logit")
+    session$setInputs(fit_model = 1)
+    session$flushReact()
+    expect_s3_class(active_result(), "mlm_result")
+    expect_no_error(output$pop_average_card_ui)
+  })))
+})

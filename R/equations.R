@@ -635,3 +635,338 @@ render_tau_labeled_html <- function(result) {
   }, character(1))
   paste0("<div class='equation-stack'>", paste(cards, collapse = ""), "</div>")
 }
+
+
+# Pre-fit symbolic HLM 8 equation builder directly from an `mlm_spec` object
+# (< 1 ms via model.matrix without calling lmer/glmer), powering live equation
+# previews on the Home Page and Guided Model Builder before fitting.
+mlm_spec_equations <- function(spec, data = spec$data) {
+  if (!inherits(spec, "mlm_spec")) {
+    stop("`spec` must be an \"mlm_spec\" object created with mlm_spec().", call. = FALSE)
+  }
+  gaussian <- identical(spec$distribution, "gaussian")
+  fallback_eq <- function() {
+    outcome_tex <- sprintf("%s_{ij}", latex_var(spec$outcome))
+    lhs <- if (gaussian) outcome_tex else sprintf("\\eta_{ij}")
+    f_terms <- names(spec$fixed)
+    rhs <- if (length(f_terms)) {
+      paste(c("\\beta_{0j}", sprintf("\\beta_{%sj}%s_{ij}", seq_along(f_terms), vapply(f_terms, latex_var, character(1)))), collapse = " + ")
+    } else {
+      "\\beta_{0j}"
+    }
+    eq1 <- paste(lhs, "=", paste(c(rhs, if (gaussian) "r_{ij}"), collapse = " + "))
+    list(
+      level = "Symbolic Preview",
+      level_notes = "Select grouping factors and valid predictors to preview exact multi-level equations.",
+      equations = eq1,
+      combined = eq1,
+      tau = character(),
+      notation = "preview",
+      note = "Symbolic equation preview prior to model estimation."
+    )
+  }
+
+  if (!is.data.frame(data) || !nrow(data)) return(fallback_eq())
+  groups_raw <- unique(unlist(spec$grouping[names(spec$random)], use.names = FALSE))
+  if (!length(groups_raw)) groups_raw <- unique(unlist(spec$grouping, use.names = FALSE))
+  groups_raw <- intersect(groups_raw, names(data))
+  if (!length(groups_raw)) return(fallback_eq())
+
+  rows <- analysis_rows(data, model_variables(spec))
+  if (!any(rows)) return(fallback_eq())
+  centered <- center_predictors(data, spec$fixed, spec$grouping, rows = rows)$data
+  sub_dat <- centered[rows, , drop = FALSE]
+
+  # Build fixed-effects design matrix X directly without fitting lmer()
+  interaction_terms <- vapply(spec$interactions, function(x) {
+    paste(formula_name(vapply(x, effective_term, character(1), fixed = spec$fixed)), collapse = ":")
+  }, character(1))
+  rhs_fixed <- unique(c(formula_name(unname(effective_fixed_terms(spec$fixed))), interaction_terms))
+  if (!length(rhs_fixed)) rhs_fixed <- "1"
+  fixed_form <- tryCatch(stats::as.formula(paste("~", paste(rhs_fixed, collapse = " + "))), error = function(e) NULL)
+  if (is.null(fixed_form)) return(fallback_eq())
+
+  mf <- tryCatch(stats::model.frame(fixed_form, data = sub_dat), error = function(e) NULL)
+  X <- tryCatch(stats::model.matrix(fixed_form, data = mf), error = function(e) NULL)
+  if (is.null(X)) return(fallback_eq())
+
+  coef_names <- colnames(X)
+  assign_vec <- attr(X, "assign")
+  term_labels <- attr(stats::terms(fixed_form), "term.labels")
+
+  # Order grouping factors from lowest cluster level (most units) upward
+  flist <- lapply(stats::setNames(groups_raw, groups_raw), function(g) droplevels(factor(sub_dat[[g]])))
+  n_units <- vapply(groups_raw, function(g) nlevels(flist[[g]]), integer(1))
+  groups <- groups_raw[order(-n_units)]
+  nested <- !identical(spec$structure, "crossed") && length(groups) <= 2L
+  if (nested && length(groups) > 1L) {
+    for (i in seq_len(length(groups) - 1L)) {
+      if (!is_nested_in(flist[[groups[[i]]]], flist[[groups[[i + 1L]]]])) nested <- FALSE
+    }
+  }
+
+  # Reconstruct lme4-compatible cnms list for random effects
+  cnms <- list()
+  cnms_names <- character()
+  expand_slope_cols <- function(slope_var) {
+    eff_name <- effective_term(spec$fixed, slope_var)
+    if (eff_name %in% coef_names) return(eff_name)
+    idx_term <- match(formula_name(eff_name), term_labels)
+    if (!is.na(idx_term)) return(coef_names[assign_vec == idx_term])
+    character()
+  }
+  for (g in groups) {
+    rand_block <- spec$random[[g]]
+    if (is.null(rand_block)) next
+    sl <- rand_block$slopes %||% character()
+    sl_cols <- unique(unlist(lapply(sl, expand_slope_cols)))
+    inc_int <- isTRUE(rand_block$intercept)
+    if (!inc_int && !length(sl_cols)) next
+    if (isTRUE(rand_block$correlation)) {
+      cnms[[length(cnms) + 1L]] <- c(if (inc_int) "(Intercept)", sl_cols)
+      cnms_names <- c(cnms_names, g)
+    } else {
+      if (inc_int) {
+        cnms[[length(cnms) + 1L]] <- "(Intercept)"
+        cnms_names <- c(cnms_names, g)
+      }
+      for (sc in sl_cols) {
+        cnms[[length(cnms) + 1L]] <- sc
+        cnms_names <- c(cnms_names, g)
+      }
+    }
+  }
+  if (!length(cnms)) return(fallback_eq())
+  names(cnms) <- cnms_names
+
+  # Attempt hierarchical level decomposition when nested (2 or 3 levels)
+  lev <- NULL
+  if (nested && length(groups) <= 2L && !is.null(assign_vec) && length(assign_vec) == length(coef_names)) {
+    n_levels <- length(groups) + 1L
+    variable_level <- function(variable) {
+      variable <- gsub("`", "", variable, fixed = TRUE)
+      if (!variable %in% names(sub_dat)) return(NA_integer_)
+      lvl <- 1L
+      for (grp_nm in groups) {
+        if (!constant_within(sub_dat[[variable]], flist[[grp_nm]])) break
+        lvl <- lvl + 1L
+      }
+      lvl
+    }
+    ok <- TRUE
+    parts <- matrix("", nrow = length(coef_names), ncol = n_levels)
+    for (j in seq_along(coef_names)) {
+      if (assign_vec[[j]] == 0L) next
+      variables <- strsplit(term_labels[[assign_vec[[j]]]], ":", fixed = TRUE)[[1]]
+      components <- strsplit(coef_names[[j]], ":", fixed = TRUE)[[1]]
+      if (length(variables) != length(components)) { ok <- FALSE; break }
+      lvls <- vapply(variables, variable_level, integer(1))
+      if (anyNA(lvls)) { ok <- FALSE; break }
+      for (lvl in seq_len(n_levels)) {
+        parts[j, lvl] <- paste(components[lvls == lvl], collapse = ":")
+      }
+    }
+    if (ok) {
+      index <- matrix(0L, nrow = length(coef_names), ncol = n_levels)
+      for (lvl in seq_len(n_levels)) {
+        parent <- if (lvl == 1L) rep("", length(coef_names)) else apply(index[, seq_len(lvl - 1L), drop = FALSE], 1, paste, collapse = ".")
+        for (k in unique(parent)) {
+          r_idx <- which(parent == k)
+          lbls <- unique(parts[r_idx, lvl])
+          lbls <- lbls[nzchar(lbls)]
+          index[r_idx, lvl] <- match(parts[r_idx, lvl], lbls, nomatch = 0L)
+        }
+      }
+      random_map <- list()
+      for (depth in seq_along(groups)) {
+        comps <- cnms[names(cnms) == groups[[depth]]]
+        lbls <- unlist(comps, use.names = FALSE)
+        prefixes <- matrix(0L, nrow = length(lbls), ncol = depth)
+        for (i in seq_along(lbls)) {
+          if (identical(lbls[[i]], "(Intercept)")) next
+          row_m <- match(lbls[[i]], coef_names)
+          if (is.na(row_m) || any(index[row_m, seq_len(n_levels) > depth] != 0L)) { ok <- FALSE; break }
+          prefixes[i, ] <- index[row_m, seq_len(depth)]
+        }
+        if (!ok) break
+        random_map[[groups[[depth]]]] <- list(
+          labels = lbls,
+          prefixes = prefixes,
+          component = rep(seq_along(comps), lengths(comps))
+        )
+      }
+      if (ok) {
+        lev <- list(
+          n_levels = n_levels,
+          groups = groups,
+          coef_names = coef_names,
+          parts = parts,
+          index = index,
+          random = random_map,
+          order = do.call(order, as.data.frame(index))
+        )
+      }
+    }
+  }
+
+  # Create lightweight mock result shell for equation formatting helpers
+  mock_fit <- structure(
+    list(link = spec$link),
+    class = if (gaussian) "lmerMod_preview" else "glmerMod_preview"
+  )
+  link_line_spec <- function(eta_sym, out_tex) {
+    mean_tex <- if (identical(spec$distribution, "binomial")) sprintf("P(%s = 1)", out_tex) else sprintf("E(%s)", out_tex)
+    rhs <- switch(
+      spec$link,
+      logit = sprintf("\\mathrm{logit}\\left[%s\\right]", mean_tex),
+      probit = sprintf("\\mathrm{probit}\\left[%s\\right]", mean_tex),
+      log = sprintf("\\mathrm{log}\\left[%s\\right]", mean_tex),
+      inverse = sprintf("1 / %s", mean_tex),
+      sprintf("\\mathrm{%s}\\left[%s\\right]", latex_escape(spec$link), mean_tex)
+    )
+    paste(eta_sym, "=", rhs)
+  }
+
+  if (!is.null(lev)) {
+    n_levels <- lev$n_levels
+    coef_symbol <- if (n_levels == 2L) c("\\beta", "\\gamma") else c("\\pi", "\\beta", "\\gamma")
+    random_symbol <- if (n_levels == 2L) "u" else c("r", "u")
+    residual_symbol <- if (n_levels == 2L) "r" else "e"
+    subs <- if (n_levels == 2L) c("ij", "j") else c("ijk", "jk", "k")
+    tails <- substring(subs, 2)
+    index <- lev$index
+    parts <- lev$parts
+    symbol <- function(base, prefix, tail) sprintf("%s_{%s%s}", base, equation_index(prefix), tail)
+    variable_tex <- function(part, sub) {
+      if (!nzchar(part)) return("")
+      comps <- strsplit(part, ":", fixed = TRUE)[[1]]
+      paste(sprintf("%s_{%s}", latex_var(comps), sub), collapse = "\\,")
+    }
+    key_of <- function(prefix) paste(prefix, collapse = ".")
+    part_for <- function(prefix) {
+      depth <- length(prefix)
+      r_idx <- which(apply(index[, seq_len(depth), drop = FALSE], 1, key_of) == key_of(prefix))
+      parts[r_idx[[1]], depth]
+    }
+    has_random <- function(depth, prefix) {
+      rand <- lev$random[[lev$groups[[depth]]]]
+      any(apply(rand$prefixes, 1, key_of) == key_of(prefix))
+    }
+    outcome_tex <- sprintf("%s_{%s}", latex_var(spec$outcome), subs[[1]])
+    eta <- sprintf("\\eta_{%s}", subs[[1]])
+    lhs <- if (gaussian) outcome_tex else eta
+    l1_children <- sort(unique(index[, 1]))
+    l1_terms <- vapply(l1_children, function(p) paste0(symbol(coef_symbol[[1]], p, tails[[1]]), variable_tex(part_for(p), subs[[1]])), character(1))
+    level1 <- paste(lhs, "=", paste(c(l1_terms, if (gaussian) sprintf("%s_{%s}", residual_symbol, subs[[1]])), collapse = " + "))
+    if (!gaussian) level1 <- paste(link_line_spec(eta, outcome_tex), level1, sep = "\\\\ ")
+
+    higher <- lapply(seq_len(n_levels - 1L), function(depth) {
+      prefixes <- unique(index[lev$order, seq_len(depth), drop = FALSE])
+      lines <- vapply(seq_len(nrow(prefixes)), function(i) {
+        prefix <- prefixes[i, ]
+        r_idx <- which(apply(index[, seq_len(depth), drop = FALSE], 1, key_of) == key_of(prefix))
+        children <- sort(unique(index[r_idx, depth + 1L]))
+        terms <- vapply(children, function(child) {
+          paste0(symbol(coef_symbol[[depth + 1L]], c(prefix, child), tails[[depth + 1L]]), variable_tex(part_for(c(prefix, child)), subs[[depth + 1L]]))
+        }, character(1))
+        if (has_random(depth, prefix)) terms <- c(terms, symbol(random_symbol[[depth]], prefix, tails[[depth]]))
+        paste(symbol(coef_symbol[[depth]], prefix, tails[[depth]]), "=", paste(terms, collapse = " + "))
+      }, character(1))
+      paste(lines, collapse = "\\\\ ")
+    })
+
+    fixed_terms <- vapply(lev$order, function(row) {
+      vars_s <- vapply(rev(seq_len(n_levels)), function(lvl) variable_tex(parts[row, lvl], subs[[lvl]]), character(1))
+      paste(c(symbol("\\gamma", index[row, ], ""), vars_s[nzchar(vars_s)]), collapse = "")
+    }, character(1))
+    random_terms <- unlist(lapply(seq_along(lev$groups), function(depth) {
+      rand <- lev$random[[lev$groups[[depth]]]]
+      prefixes <- unique(rand$prefixes[do.call(order, as.data.frame(rand$prefixes)), , drop = FALSE])
+      vapply(seq_len(nrow(prefixes)), function(i) {
+        prefix <- prefixes[i, ]
+        vars_s <- vapply(rev(seq_len(depth)), function(lvl) if (prefix[[lvl]] == 0L) "" else variable_tex(part_for(prefix[seq_len(lvl)]), subs[[lvl]]), character(1))
+        paste(c(symbol(random_symbol[[depth]], prefix, tails[[depth]]), vars_s[nzchar(vars_s)]), collapse = "")
+      }, character(1))
+    }))
+    combined <- paste(lhs, "=", paste(c(fixed_terms, random_terms, if (gaussian) sprintf("%s_{%s}", residual_symbol, subs[[1]])), collapse = " + "))
+    tau_tag <- if (n_levels == 2L) "" else c("\\pi ", "\\beta ")
+    blocks <- lapply(seq_along(lev$groups), function(depth) {
+      grp_nm <- lev$groups[[depth]]
+      rand <- lev$random[[grp_nm]]
+      labels_index <- apply(rand$prefixes, 1, equation_index)
+      syms <- vapply(seq_along(rand$labels), function(i) symbol(random_symbol[[depth]], rand$prefixes[i, ], tails[[depth]]), character(1))
+      n <- length(syms)
+      cells <- matrix("0", nrow = n, ncol = n)
+      for (i in seq_len(n)) {
+        for (j in seq_len(n)) {
+          if (rand$component[[i]] != rand$component[[j]]) next
+          pair <- c(labels_index[[max(i, j)]], labels_index[[min(i, j)]])
+          cells[i, j] <- sprintf("\\tau_{%s%s}", tau_tag[[depth]], paste(pair, collapse = if (depth > 1L || any(nchar(pair) > 1L)) "," else ""))
+        }
+      }
+      list(group = grp_nm, labels = rand$labels, symbols = syms, cells = cells)
+    })
+    tau_strs <- vapply(blocks, function(b) tau_block_latex(b$symbols, b$cells, b$group, b$labels), character(1))
+    return(list(
+      level = c("Level 1", sprintf("Level %s (%s)", seq_along(lev$groups) + 1L, lev$groups)),
+      level_notes = c(
+        if (gaussian) sprintf("Observation-level outcome model for %s.", spec$outcome) else sprintf("Link-scale model (%s link) for %s.", spec$link, spec$outcome),
+        sprintf("Cluster-level equations across %s.", lev$groups)
+      ),
+      equations = c(level1, unlist(higher)),
+      combined = combined,
+      tau = tau_strs,
+      notation = if (n_levels == 2L) "two-level hierarchical" else "three-level hierarchical",
+      note = "Live HLM equation preview generated from your current variable, centering, random-slope, and moderator selections."
+    ))
+  }
+
+  # Mixed-model fallback for crossed / non-hierarchical specifications
+  slopes <- setdiff(coef_names, "(Intercept)")
+  unit_letters <- c("j", "k", "l", "m", "n", "o")
+  random_letters <- c("u", "v", "w", "z", "a", "d")
+  var_tex_mixed <- function(nm) {
+    comps <- strsplit(nm, ":", fixed = TRUE)[[1]]
+    paste(sprintf("%s_{i}", latex_var(comps)), collapse = "\\,")
+  }
+  outcome_tex <- sprintf("%s_{i}", latex_var(spec$outcome))
+  lhs <- if (gaussian) outcome_tex else "\\eta_{i}"
+  f_terms <- c(if ("(Intercept)" %in% coef_names) "\\beta_{0}", sprintf("\\beta_{%s}%s", seq_along(slopes), vapply(slopes, var_tex_mixed, character(1))))
+  blocks <- lapply(seq_along(groups), function(g_idx) {
+    grp_nm <- groups[[g_idx]]
+    unit <- unit_letters[[(g_idx - 1L) %% length(unit_letters) + 1L]]
+    letter <- random_letters[[(g_idx - 1L) %% length(random_letters) + 1L]]
+    comps <- cnms[names(cnms) == grp_nm]
+    lbls <- unlist(comps, use.names = FALSE)
+    comp_id <- rep(seq_along(comps), lengths(comps))
+    lbl_idx <- match(lbls, c("(Intercept)", slopes)) - 1L
+    if (anyNA(lbl_idx)) lbl_idx <- seq_along(lbls) - 1L
+    syms <- sprintf("%s_{%s%s}", letter, lbl_idx, unit)
+    n <- length(lbls)
+    cells <- matrix("0", nrow = n, ncol = n)
+    for (i in seq_len(n)) {
+      for (j in seq_len(n)) {
+        if (comp_id[[i]] != comp_id[[j]]) next
+        pair <- c(lbl_idx[[max(i, j)]], lbl_idx[[min(i, j)]])
+        cells[i, j] <- sprintf("\\tau_{%s %s}", letter, paste(pair, collapse = if (any(pair > 9L)) "," else ""))
+      }
+    }
+    terms_str <- paste0(
+      sprintf("%s_{%s%s[i]}", letter, lbl_idx, unit),
+      vapply(lbls, function(lbl) if (identical(lbl, "(Intercept)")) "" else var_tex_mixed(lbl), character(1))
+    )
+    list(group = grp_nm, labels = lbls, symbols = syms, cells = cells, terms = terms_str)
+  })
+  eq_str <- paste(lhs, "=", paste(c(f_terms, unlist(lapply(blocks, `[[`, "terms")), if (gaussian) "e_{i}"), collapse = " + "))
+  eqs <- if (gaussian) eq_str else paste(link_line_spec("\\eta_{i}", outcome_tex), eq_str, sep = "\\\\ ")
+  tau_strs <- vapply(blocks, function(b) tau_block_latex(b$symbols, b$cells, b$group, b$labels), character(1))
+  list(
+    level = "Mixed-model form",
+    level_notes = sprintf("Cross-classified / mixed-model equation across %s.", paste(groups, collapse = " and ")),
+    equations = eqs,
+    combined = eq_str,
+    tau = tau_strs,
+    notation = "mixed-model",
+    note = "Cross-classified design preview written in single-equation mixed-model notation."
+  )
+}

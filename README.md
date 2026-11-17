@@ -4,53 +4,63 @@
 [![R CMD check](https://github.com/MarcusHarrisUConn/mlmr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/MarcusHarrisUConn/mlmr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-`mlmr` is an open-source R package and Shiny app for fitting, understanding,
-and reporting mixed-effects and multilevel models. It is designed for
-researchers, instructors, graduate students, and applied analysts who want a
-guided HLM-style model-building workflow without giving up transparent `lme4` R
-code.
+`mlmr` is an open-source R package and Shiny application for specifying,
+fitting, understanding, and reporting mixed-effects and multilevel models. It is
+designed for researchers, instructors, graduate students, and applied analysts
+who want an **HLM 8-style** level-by-level workflow without giving up
+transparent, reproducible `lme4` R code.
 
-The app and package guide users from data import, grouping structure, centering
-decisions, fixed effects, per-level random effects, and interactions to
-APA-style tables, Nakagawa $R^2$, random-intercept reliability, level-by-level
-equations, combined equations, labeled Tau variance-covariance displays,
-diagnostics, and reproducible `.zip` publication bundles.
-
-Gaussian linear mixed models (nested, three-level, and longitudinal growth) are
-the primary production workflow, with optional Satterthwaite and Kenward-Roger
-denominator degrees of freedom via `lmerTest` and `pbkrtest`. GLMM workflows
-(binomial, Poisson, negative binomial, and Gamma) are available in Advanced Mode
-with explicit link-scale, Wald-inference, and odds-ratio / incidence-rate-ratio
-reporting.
+The app and package guide users from data import, explicit clustering design
+selection, inline centering decisions, random-slope toggles, and cross-level
+slope moderators to live pre-fit symbolic equations, APA-style model-based and
+cluster-robust sandwich SE tables, variance-component likelihood-ratio tests,
+Level-1 variance homogeneity ($H$) tests, Nakagawa $R^2$, empirical Bayes
+intercept and slope reliabilities ($\hat{\lambda}$), population-average HGLM
+odds ratios, diagnostics, and reproducible `.zip` publication bundles.
 
 ## Why Use mlmr?
 
 Many researchers learn multilevel modeling through level-based graphical
-software, then need reproducible R syntax for manuscripts, theses, teaching, and
-open science. `mlmr` bridges those worlds:
+software (such as HLM 8), then need reproducible R syntax for manuscripts,
+theses, teaching, and open science. `mlmr` bridges both worlds:
 
-- model setup feels familiar to users who think in Level 1, Level 2, and Level 3
-  terms;
-- fitted models remain ordinary `lme4` (or `lmerTest`) models;
-- centering, contrast coding, interactions, degrees of freedom, and
-  random-effects structures are made explicit;
-- every GUI run pairs results with reproducible R scripts, Quarto reports, raw
-  LaTeX (`amsmath` + `graphicx`), and `.zip` archive bundles.
+- **Immediate Home-Page Clarity**: **Data > Overview** highlights the active
+  **Dependent Variable (Outcome $Y$)**, **Cluster Hierarchy**, and **Active
+  Independent Variables** alongside live symbolic Level-1/Level-2/Level-3
+  equations and an auto-classified **Dataset Variable Guide**.
+- **Guided 4-Step HLM 8 Equation Builder**: Assign Level-1 and higher-level
+  predictors with inline centering (`CWC`, `GMC`, uncentered), one-click
+  random-slope (`+ u`) checkboxes, and dedicated **Cross-Level Slope Moderator**
+  selectors—watching the hierarchical equations update live before fitting.
+- **Global `Advanced / HGLM` Switch**: Toggle non-Gaussian outcomes (Binomial
+  Logit/Probit, Poisson, Negative Binomial, Gamma) directly from the top
+  navigation bar with unit-specific and population-average reporting.
+- **Full HLM 8 Inferential Companion Suite**: Pairs `lme4` / `lmerTest` /
+  `pbkrtest` estimates with Huber-White cluster-robust sandwich SEs (`CR1` /
+  `CR0`), random-intercept and random-slope reliabilities, variance-component
+  LRT $\chi^2$ tests, and Bartlett's $H$ test of Level-1 variance homogeneity.
+- **Complete Reproducibility**: Every GUI run pairs results with standalone `.R`
+  scripts, Quarto `.qmd` reports, raw LaTeX (`amsmath` + `graphicx`), and `.zip`
+  archive bundles.
 
 ## What the App Looks Like
 
 - **Data**: choose built-in HSB educational or longitudinal growth datasets, or
-  upload CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files (including labelled
-  categorical variables).
-- **Model**: declare outcome, grouping factors, predictor levels, centering,
-  interactions, and per-grouping-factor random intercepts, slopes, and Tau
-  correlations with a live covariance matrix preview.
+  upload CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files; declare the Dependent
+  Variable and clustering design (*Two-Level Nested*, *Three-Level Nested*,
+  *Longitudinal*, or *Cross-Classified*); and inspect the **Active Multilevel
+  Model Blueprint** on **Overview**.
+- **Model**: step through Outcome, Level-1 Predictors (centering + random
+  slopes), Higher-Level Predictors & Cross-Level Slope Moderators, and
+  $\mathbf{T}$ covariance correlation controls alongside live symbolic HLM
+  equations.
 - **Estimate**: choose REML/ML, Gaussian degrees of freedom (`none`,
   `satterthwaite`, or `kenward-roger`), verify pre-fit **Model Readiness**
   checks, and fit or refit.
-- **Results**: review dashboard summaries, APA tables, $R^2$ and reliability,
-  level-by-level and combined equations, labeled Tau matrices, complete-case
-  diagnostics, and likelihood-ratio model comparisons.
+- **Results**: review dashboard summaries, Model-Based and Cluster-Robust APA
+  tables, variance LRTs, intercept & slope reliabilities, Level-1 homogeneity
+  ($H$), population-average ORs (for binary logit HGLMs), fitted equations,
+  complete-case diagnostics, and likelihood-ratio model comparisons.
 - **Report & Code**: copy or download Quarto `.qmd` reports, standalone `.R`
   scripts, `.tex` equations/tables, Word/HTML APA tables, and `.zip`
   reproducibility archives.
@@ -58,10 +68,6 @@ open science. `mlmr` bridges those worlds:
 Screenshots and documentation are available at:
 
 <https://marcusharrisphd.com/mlmr/>
-
-![mlmr model builder](https://marcusharrisphd.com/mlmr/screenshots/mlmr-model-builder.png)
-
-![mlmr results dashboard](https://marcusharrisphd.com/mlmr/screenshots/mlmr-results-dashboard.png)
 
 ## Installation
 
@@ -132,21 +138,23 @@ spec <- mlmr::mlm_spec(
   data = dat
 )
 
+# Preview symbolic HLM equations before fitting
+mlmr::mlm_spec_equations(spec)
+
+# Fit and compute HLM 8 + APA outputs
 fit <- mlmr::mlm_fit(spec, df_method = "satterthwaite")
 mlmr::mlm_apa_tables(fit)
+mlmr::mlm_robust_se(fit)
+mlmr::mlm_variance_tests(fit)
+mlmr::mlm_homogeneity_test(fit)
 mlmr::mlm_r2(fit)
 mlmr::mlm_reliability(fit)
 mlmr::mlm_latex_equations(fit)
 mlmr::mlm_write_publication_bundle(fit, "mlmr_bundle.zip")
 ```
 
-For repeated-measures / growth-curve workflows:
-
-```r
-dat_long <- mlmr::example_longitudinal()
-```
-
-To inspect scope, HLM 8 parity, and deterministic validation benchmarks:
+To inspect scope, the 24-workflow HLM 8 parity matrix, and deterministic
+validation benchmarks:
 
 ```r
 mlmr::mlm_supported_models()

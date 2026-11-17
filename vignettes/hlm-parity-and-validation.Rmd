@@ -16,25 +16,57 @@ knitr::opts_chunk$set(
 
 ## Purpose
 
-`mlmr` provides a free, reproducible, HLM-style graphical workflow for
-multilevel modeling in R. Users, instructors, and reviewers should be able to
-inspect both the supported feature matrix and the deterministic validation
-benchmarks that protect core workflows against regressions.
+`mlmr` is built to provide genuine workflow and inferential parity with
+Scientific Software International's **HLM 8** for the multilevel models most
+widely taught and published in education, psychology, public health, and
+organizational research—while running natively on `lme4` with open, inspectable
+R scripts.
 
-## HLM-Style Feature Parity
+## 24-Workflow HLM 8 Feature Parity Matrix
 
-`mlmr` covers the core teaching and publication workflows expected from
-level-based multilevel software while keeping every step grounded in `lme4`:
+`mlm_hlm8_parity()` documents 24 HLM 8 workflows across model specification,
+centering, live symbolic equations, empirical Bayes intercept and slope
+reliabilities, cluster-robust sandwich standard errors, variance-component
+likelihood-ratio tests, Level-1 variance homogeneity testing, and HGLM
+unit-specific vs. population-average reporting:
 
 ```{r parity, eval = TRUE}
 knitr::kable(mlmr::mlm_hlm8_parity())
 ```
 
+## Verifying HLM 8 Inferential Formulas
+
+The exported HLM 8 companion functions implement textbook Raudenbush & Bryk
+(2002) and Liang & Zeger (1986) estimators directly from the fitted `lme4`
+mixed-model blocks:
+
+- **Cluster-Robust Sandwich SEs (`mlm_robust_se()`)**: Computes
+  $\hat{\mathbf{V}}_{\mathrm{rob}} = c \, \mathbf{B}^{-1} (\sum_{j=1}^J \mathbf{X}_j^\top \mathbf{V}_j^{-1} \hat{\mathbf{e}}_j \hat{\mathbf{e}}_j^\top \mathbf{V}_j^{-1} \mathbf{X}_j) \mathbf{B}^{-1}$,
+  where $\mathbf{B} = \sum_{j=1}^J \mathbf{X}_j^\top \mathbf{V}_j^{-1} \mathbf{X}_j$
+  is the exact generalized-least-squares information matrix and
+  $c = J / (J - 1)$ (`type = "CR1"`) or $c = 1$ (`type = "CR0"`).
+- **Random-Intercept and Random-Slope Reliabilities (`mlm_reliability()`)**:
+  Evaluates $\mathbf{\Lambda}_j = \mathbf{T} (\mathbf{T} + (\mathbf{Z}_j^\top \mathbf{Z}_j / \hat{\sigma}^2)^{-1})^{-1}$
+  via the Woodbury identity so clusters without full within-group rank still
+  yield numerically stable diagonal reliabilities $\hat{\lambda}_{qj} \in [0, 1)$.
+- **Variance-Component LRTs (`mlm_variance_tests()`)**: Compares the full model
+  against reduced models omitting one random term at a time, reporting
+  boundary-adjusted $\frac{1}{2}\chi^2_0 + \frac{1}{2}\chi^2_1$ (or
+  $\frac{1}{2}\chi^2_1 + \frac{1}{2}\chi^2_2$ when covariances are dropped)
+  mixture *p*-values (Stram & Lee, 1994).
+- **Homogeneity of Level-1 Variance (`mlm_homogeneity_test()`)**: Computes
+  Bartlett's $H = \sum (\nu_j \ln(\hat{s}^2 / s_j^2))$ across clusters with
+  $\nu_j \ge 2$ within-cluster degrees of freedom.
+- **Population-Average HGLM Marginal Effects (`mlm_population_average()`)**:
+  Applies Zeger et al.'s (1988) attenuation factor
+  $(1 + (16\sqrt{3} / (15\pi))^2 \hat{\tau}_{00})^{-1/2}$ to binary logit
+  unit-specific coefficients.
+
 ## Deterministic Validation Benchmarks
 
 `mlmr` ships eight deterministic benchmark specifications covering two-level
 null, random-intercept, random-slope, cross-level interaction, three-level
-nested, cross-classified, longitudinal growth, and binary logistic GLMM
+nested, cross-classified, longitudinal growth, and binary logistic HGLM
 workflows.
 
 By default (`run = FALSE`), `mlm_validation_benchmarks()` checks expected
@@ -46,17 +78,10 @@ knitr::kable(mlmr::mlm_validation_benchmarks(run = FALSE)[, c(
 )])
 ```
 
-## Fitted Benchmark & Round-Trip Code Verification
-
 When `run = TRUE`, `mlm_validation_benchmarks()` fits all eight benchmark
-models and verifies:
-
-- AIC agreement against stored reference values;
-- fixed-effect point estimates and standard errors;
-- random-intercept variance components and Gaussian ICCs;
-- automated round-trip execution of the exported R script (`Repro Code Match`)
-  in an isolated R environment to confirm that exported code reproduces the
-  exact fitted coefficients.
+models and verifies AIC agreement, fixed-effect estimates and standard errors,
+variance components, Gaussian ICCs, and automated round-trip execution of the
+exported R script (`Repro Code Match`) in an isolated R environment:
 
 ```{r fit-benchmarks, eval = FALSE}
 mlmr::mlm_validation_benchmarks(run = TRUE)
@@ -71,6 +96,3 @@ the **About** tab of the Shiny app:
 report <- mlmr::mlm_validation_report()
 names(report)
 ```
-
-The report bundles benchmark status, fixed effects, variance components, ICCs,
-Nakagawa $R^2$, and convergence diagnostics across all eight reference models.

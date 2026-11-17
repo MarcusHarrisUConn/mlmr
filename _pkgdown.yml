@@ -40,8 +40,8 @@ navbar:
 home:
   title: mlmr
   description: >
-    Open-source mixed-effects and multilevel modeling in R with a guided Shiny
-    interface, readable equations, APA-style tables, and reproducible exports.
+    Open-source mixed-effects and multilevel modeling in R with a guided HLM-style
+    Shiny interface, live equations, APA-style tables, and reproducible exports.
 
 reference:
 - title: Package overview
@@ -56,7 +56,16 @@ reference:
   - example_longitudinal
   - mlm_spec
   - mlm_formula
+  - mlm_spec_equations
   - mlm_fit
+- title: HLM-style inference and diagnostics
+  contents:
+  - mlm_robust_se
+  - mlm_variance_tests
+  - mlm_homogeneity_test
+  - mlm_population_average
+  - mlm_r2
+  - mlm_reliability
 - title: Scope and validation
   contents:
   - mlm_supported_models
@@ -66,8 +75,8 @@ reference:
 - title: Report models
   contents:
   - mlm_apa_tables
-  - mlm_r2
-  - mlm_reliability
+  - mlm_equations
+  - mlm_latex_equations
   - mlm_publication_bundle
   - mlm_write_publication_bundle
   - mlm_methods_text

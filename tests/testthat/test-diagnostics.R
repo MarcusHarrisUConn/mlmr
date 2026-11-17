@@ -43,3 +43,41 @@ test_that("compare_models_lrt computes likelihood-ratio tests and catches incomp
   cmp_bad_n <- mlmr:::compare_models_lrt(list("Full N" = m1, "Smaller N" = m2_na))
   expect_false(cmp_bad_n$ok)
 })
+
+test_that("HLM 8 inferential companions (robust SE, variance LRTs, homogeneity H, population-average ORs) work accurately", {
+  res <- quiet_fit(two_level_spec())
+  rob_cr1 <- mlm_robust_se(res, type = "CR1")
+  rob_cr0 <- mlm_robust_se(res, type = "CR0")
+  expect_identical(rob_cr1$Predictor, names(lme4::fixef(res$fit)))
+  expect_equal(rob_cr1$SE_Model, unname(round(sqrt(diag(as.matrix(stats::vcov(res$fit)))), 4)), tolerance = 1e-4)
+  J <- rob_cr1$Clusters[[1]]
+  expect_equal(rob_cr1$SE_Robust, rob_cr0$SE_Robust * sqrt(J / (J - 1)), tolerance = 1e-3)
+  expect_identical(rob_cr1$df, rep(J - 1, nrow(rob_cr1)))
+
+  vt <- mlm_variance_tests(res)
+  expect_identical(vt$Term, c("(Intercept)", "ses_CWC"))
+  expect_true(all(vt$Chisq >= 0))
+  expect_true(all(nzchar(vt$p)))
+
+  ht <- mlm_homogeneity_test(res)
+  expect_identical(nrow(ht), 1L)
+  expect_identical(ht$Cluster, "schoolid")
+  expect_true(is.finite(ht$H_Statistic) && ht$H_Statistic >= 0)
+  expect_identical(mlm_population_average(res)$Predictor, character())
+
+  # Binary logit HGLM: robust SEs + population-average shrinkage
+  spec_bin <- mlm_spec(
+    "passmath", "binomial", "logit",
+    fixed = list(ses = list(center = "CWC"), sector = list()),
+    grouping = list(schoolid = "schoolid"),
+    random = school_random(),
+    data = hsb
+  )
+  res_bin <- quiet_fit(spec_bin)
+  rob_bin <- mlm_robust_se(res_bin)
+  expect_true("OR" %in% names(rob_bin))
+  pa <- mlm_population_average(res_bin)
+  expect_identical(nrow(pa), length(lme4::fixef(res_bin$fit)))
+  expect_true(all(abs(pa$b_PopAverage) <= abs(pa$b_UnitSpecific) + 1e-3))
+  expect_identical(nrow(mlm_homogeneity_test(res_bin)), 0L)
+})

@@ -4,19 +4,27 @@
 \alias{mlmr-package}
 \title{A Guided Interface for Mixed-Effects and Multilevel Models}
 \description{
-  \pkg{mlmr} provides a guided Shiny interface and supporting R toolkit for
-  fitting, understanding, and reporting mixed-effects and multilevel models
-  with \pkg{lme4}.
+  \pkg{mlmr} provides a guided HLM 8-style Shiny interface and supporting R
+  toolkit for specifying, fitting, understanding, and reporting mixed-effects
+  and multilevel models with \pkg{lme4}.
 }
 \details{
-  The package is designed for users who want an HLM-style graphical workflow
-  while preserving transparent and reproducible R code. It supports two- and
-  three-level nested designs, longitudinal growth models, crossed random
-  effects, grand-mean and cluster-mean centering, optional Satterthwaite and
-  Kenward-Roger degrees of freedom, Nakagawa \eqn{R^2}, random-intercept
-  reliability, APA-style tables, level-by-level and combined equations, Tau
-  variance-covariance displays, diagnostics, and \code{.zip} publication
-  archive bundles.
+  The package is designed for researchers, instructors, and students who want a
+  level-by-level HLM workflow while preserving transparent and reproducible R
+  code. It supports two- and three-level nested designs, longitudinal growth
+  models, crossed random effects, Hierarchical Generalized Linear Models
+  (HGLMs), grand-mean and cluster-mean centering, optional Satterthwaite and
+  Kenward-Roger degrees of freedom, Huber-White cluster-robust sandwich standard
+  errors (\code{\link{mlm_robust_se}
+  }), single-term variance-component likelihood-ratio tests
+  (\code{\link{mlm_variance_tests}}), Level-1 variance homogeneity testing
+  (\code{\link{mlm_homogeneity_test}}), logistic population-average marginal
+  effects (\code{\link{mlm_population_average}}), Nakagawa \eqn{R^2}
+  (\code{\link{mlm_r2}}), empirical Bayes random-intercept and random-slope
+  reliabilities (\code{\link{mlm_reliability}}), pre-fit and post-fit symbolic
+  hierarchical equations (\code{\link{mlm_spec_equations}},
+  \code{\link{mlm_latex_equations}}), APA-style tables, Tau covariance displays,
+  diagnostics, and \code{.zip} publication archive bundles.
 
   Launch the app with \code{\link{run_mlmr}()}.
 
@@ -31,6 +39,8 @@
 \seealso{
   \code{\link{run_mlmr}},
   \code{\link{example_hsb}},
+  \code{\link{mlm_spec_equations}},
+  \code{\link{mlm_robust_se}},
   \code{\link{mlm_r2}},
   \code{\link{mlm_supported_models}},
   \code{\link{mlm_validation_report}},

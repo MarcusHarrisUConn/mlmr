@@ -16,10 +16,12 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-`mlmr` is an open-source Shiny app and R toolkit for fitting, understanding,
-and reporting mixed-effects and multilevel models in R. It is designed for
-researchers and students who want a guided level-based modeling workflow while
-keeping the underlying `lme4` code visible and reproducible.
+`mlmr` is an open-source Shiny application and R toolkit for specifying,
+fitting, understanding, and reporting mixed-effects and multilevel models in R.
+It provides an HLM 8-style level-by-level workflow—showing the Dependent
+Variable, Independent Variables at each level, centering choices, random
+slopes, and hierarchical equations at every stage—while keeping the underlying
+`lme4` formula and R script completely transparent and reproducible.
 
 ## Install and Load
 
@@ -32,43 +34,91 @@ pak::pak("MarcusHarrisUConn/mlmr")
 library(mlmr)
 ```
 
-## Launch the App
+## Launch the Interactive App
 
 ```{r launch, eval = FALSE}
 mlmr::run_mlmr()
 ```
 
-The app opens with two built-in example datasets:
+### Key Interface Landmarks
 
-- **HSB Educational** (`example_hsb()`): students nested within schools and
-  districts (plus crossed teacher IDs, binary `passmath`, and count `absences`);
-- **Longitudinal Growth** (`example_longitudinal()`): repeated measurement waves
-  nested within students and schools.
+1. **Home Page Blueprint (`Data > Overview`)**: Immediately displays the active
+   **Dependent Variable (Outcome $Y$)**, the **Cluster Hierarchy** (2-level
+   nested, 3-level nested, longitudinal repeated-measures, or cross-classified),
+   all **Active Independent Variables** with their level, centering, and
+   random-slope / moderator roles, a live symbolic HLM equation preview, and an
+   auto-classified **Dataset Variable Guide** showing how every column in your
+   dataset varies within vs. between clusters.
+2. **Explicit Clustering Design Selector (`Data` sidebar)**: Choose among four
+   clear study designs—*Two-Level Nested*, *Three-Level Nested*, *Longitudinal /
+   Repeated Measures*, or *Cross-Classified*—with dedicated Level-2 and Level-3
+   cluster dropdowns rather than overlapping grouping controls.
+3. **Global `Advanced / HGLM` Switch (top navigation bar)**: Toggles Hierarchical
+   Generalized Linear Models (Binomial Logit/Probit, Poisson, Negative Binomial,
+   and Gamma) on both the **Data** and **Model** tabs, plus custom `lme4`
+   formula overrides.
+4. **Guided 4-Step HLM 8 Model Builder (`Model` tab)**:
+   - **Step 1**: Dependent Variable & Outcome Family;
+   - **Step 2**: Level-1 Predictors with inline centering (`CWC`, `GMC`, or
+     uncentered) and one-click **Random slope (`+ u`)** checkboxes;
+   - **Step 3**: Level-2 / Level-3 Predictors and **Cross-Level Slope
+     Moderators** (predictors of Level-1 slopes);
+   - **Step 4**: Variance-Covariance ($\mathbf{T}$) correlation structure, paired
+     with live symbolic Level-1/Level-2/Level-3 equations updated before fitting.
 
-Uploaded data can be provided as CSV, TSV/TXT, Excel (`.xlsx`/`.xls` via
-`readxl`), or SPSS, SAS, and Stata files (`.sav`, `.por`, `.sas7bdat`, `.xpt`,
-`.dta` via `haven`, including automatic handling of value labels and variable
-labels).
+## Built-In Datasets and Supported File Formats
 
-## Current Scope
+The package ships two ready-to-run multilevel datasets:
+
+- **HSB Educational** (`example_hsb()`): students nested within 24 schools and 6
+  districts, with student-level (`ses`, `homework`, `priorachieve`), school-level
+  (`meanses`, `sector`, `climate`, `schoolsize`), district-level (`districtses`),
+  crossed (`teacherid`), binary (`passmath`), and count (`absences`) variables;
+- **Longitudinal Growth** (`example_longitudinal()`): 5 repeated measurement
+  waves nested within 80 students across 16 schools.
+
+Uploaded files can be CSV, TSV/TXT, Excel (`.xlsx`/`.xls` via `readxl`), or
+SPSS, SAS, and Stata files (`.sav`, `.por`, `.sas7bdat`, `.xpt`, `.dta` via
+`haven`, with automatic preservation of factor value labels and variable labels).
+
+## Quick Programmatic Walkthrough
+
+Every interactive step in `mlmr` maps directly onto exported R functions. You can
+preview the symbolic HLM equations *before* fitting, fit the model, and extract
+both model-based and HLM 8 cluster-robust outputs:
+
+```{r quick-demo}
+dat <- example_hsb(n_schools = 10, min_students = 12, max_students = 16)
+
+spec <- mlm_spec(
+  outcome = "mathscore",
+  fixed = list(
+    ses = list(center = "CWC"),
+    meanses = list(center = "GMC"),
+    sector = list(center = "none")
+  ),
+  grouping = list(schoolid = "schoolid"),
+  random = list(
+    schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE)
+  ),
+  interactions = list(c("ses", "sector")),
+  data = dat
+)
+
+# Pre-fit symbolic HLM equations (no model estimation required)
+pre_eq <- mlm_spec_equations(spec)
+pre_eq$level
+pre_eq$equations[[1]]
+
+# Fit model and inspect HLM 8 inferential companions
+fit <- suppressWarnings(mlm_fit(spec))
+mlm_r2(fit)
+mlm_reliability(fit)
+mlm_robust_se(fit)[, c("Predictor", "Estimate", "SE_Model", "SE_Robust", "p")]
+```
+
+## Current Scope Summary
 
 ```{r supported-models}
 mlmr::mlm_supported_models()[, c("Area", "Status")]
 ```
-
-## Recommended First Workflow
-
-1. Launch `mlmr::run_mlmr()`.
-2. Keep the built-in HSB dataset selected on the **Data** tab (or click **Fit
-   Example Model** directly from **Data > Overview**).
-3. Inspect **Model** to review the outcome, declared Level 1/2/3 predictors,
-   grand-mean and cluster-mean centering, interactions, and the live Tau
-   covariance preview.
-4. On **Estimate**, select your preferred Gaussian degrees-of-freedom method
-   (large-sample normal, Satterthwaite via `lmerTest`, or Kenward-Roger via
-   `pbkrtest`), verify **Model Readiness**, and click **Fit Model**.
-5. Explore **Results** for dashboard summaries, APA tables, $R^2$ and
-   random-intercept reliability, hierarchical equations, diagnostics, and
-   likelihood-ratio model comparisons.
-6. Open **Report & Code** to download a `.qmd` report, standalone `.R` script,
-   `.tex` tables/equations, or a complete `.zip` publication bundle.

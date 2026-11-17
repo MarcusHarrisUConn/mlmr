@@ -373,8 +373,8 @@ apa_r2_html <- function(result, table_number = 5, title = "Model Variance Explai
   )
   rel_note <- if (nrow(rel)) {
     paste(
-      "HLM random-intercept reliability (mean [range]):",
-      paste(sprintf("%s = %.3f [%.3f, %.3f]", rel$Group, rel$Mean_Reliability, rel$Min_Reliability, rel$Max_Reliability), collapse = "; "),
+      "HLM random-coefficient reliability (mean [range]):",
+      paste(sprintf("%s %s = %.3f [%.3f, %.3f]", rel$Group, rel$Term, rel$Mean_Reliability, rel$Min_Reliability, rel$Max_Reliability), collapse = "; "),
       "."
     )
   } else {
@@ -388,6 +388,34 @@ apa_r2_html <- function(result, table_number = 5, title = "Model Variance Explai
       "Marginal R2 reflects variance explained by fixed effects alone; Conditional R2 reflects fixed plus random effects (Nakagawa, Johnson, & Schielzeth, 2017).",
       rel_note
     )))
+  )
+}
+
+apa_reliability_html <- function(result, table_number = "5b", title = "HLM Random-Coefficient Reliability Estimates") {
+  rel <- mlm_reliability(result)
+  if (!nrow(rel)) {
+    return(apa_html_table(
+      data.frame(`Grouping Level` = character(), Coefficient = character(), Reliability = character(), check.names = FALSE),
+      table_number = table_number,
+      title = title,
+      note = "Empirical Bayes random-coefficient reliabilities are computed for Gaussian mixed models."
+    ))
+  }
+  disp <- data.frame(
+    `Grouping Level` = rel$Group,
+    `Random Coefficient` = rel$Term,
+    Clusters = as.character(rel$Units),
+    Variance = sprintf("%.3f", rel$Variance),
+    `Mean Reliability` = sprintf("%.3f", rel$Mean_Reliability),
+    `Cluster Range` = sprintf("[%.3f, %.3f]", rel$Min_Reliability, rel$Max_Reliability),
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
+  apa_html_table(
+    disp,
+    table_number = table_number,
+    title = title,
+    note = "Reliability lambda estimates the ratio of parameter variance to total (parameter + sampling) variance across clusters (Raudenbush & Bryk, 2002, Eq. 3.45)."
   )
 }
 
@@ -689,6 +717,10 @@ manuscript_report_markdown <- function(result, REML = NULL, optimizer = NULL, ma
     "",
     md_pipe_table(fixed),
     "",
+    "## Fixed Effects With Cluster-Robust Standard Errors (HLM CR1)",
+    "",
+    md_pipe_table(tryCatch(mlm_robust_se(result), error = function(e) data.frame())),
+    "",
     "# Variance Components",
     "",
     md_pipe_table(variance),
@@ -701,7 +733,7 @@ manuscript_report_markdown <- function(result, REML = NULL, optimizer = NULL, ma
     "",
     md_pipe_table(r2),
     "",
-    if (nrow(rel)) c("## Random-Intercept Reliability", "", md_pipe_table(rel), "") else character(),
+    if (nrow(rel)) c("## Random-Coefficient Reliability", "", md_pipe_table(rel), "") else character(),
     "# Software and Packages",
     "",
     mlm_software_apa(packages = pkgs),

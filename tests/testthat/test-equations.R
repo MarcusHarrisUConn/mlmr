@@ -130,3 +130,45 @@ test_that("plain-text equations keep the formula on one line", {
   expect_length(grep("^Fitted formula:", lines), 1)
   expect_match(lines[[1]], "b4*ses_CWC:sectorPublic", fixed = TRUE)
 })
+
+test_that("pre-fit mlm_spec_equations matches post-fit mlm_latex_equations across 2-level, 3-level, crossed, and GLMM specs", {
+  s2 <- two_level_spec()
+  eq_pre2 <- mlm_spec_equations(s2)
+  eq_post2 <- mlm_latex_equations(quiet_fit(s2))
+  expect_identical(eq_pre2$level, eq_post2$level)
+  expect_identical(eq_pre2$equations, eq_post2$equations)
+  expect_identical(eq_pre2$combined, eq_post2$combined)
+  expect_identical(eq_pre2$tau, eq_post2$tau)
+
+  s3 <- mlm_spec(
+    "mathscore",
+    fixed = list(ses = list(center = "CWC"), climate = list(center = "GMC"), districtses = list(center = "GMC")),
+    grouping = list(schoolid = "schoolid", districtid = "districtid"),
+    random = list(schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE), districtid = list(intercept = TRUE)),
+    interactions = list(c("ses", "climate")),
+    data = hsb
+  )
+  eq_pre3 <- mlm_spec_equations(s3)
+  eq_post3 <- mlm_latex_equations(quiet_fit(s3))
+  expect_identical(eq_pre3$equations, eq_post3$equations)
+  expect_identical(eq_pre3$tau, eq_post3$tau)
+
+  sc <- mlm_spec(
+    "mathscore",
+    fixed = list(ses = list(center = "CWC")),
+    grouping = list(schoolid = "schoolid", teacherid = "teacherid"),
+    structure = "crossed",
+    random = list(schoolid = list(intercept = TRUE), teacherid = list(intercept = TRUE)),
+    data = hsb
+  )
+  expect_identical(mlm_spec_equations(sc)$combined, mlm_latex_equations(quiet_fit(sc))$combined)
+
+  sg <- mlm_spec(
+    "passmath", "binomial", "logit",
+    fixed = list(ses = list(center = "CWC"), sector = list()),
+    grouping = list(schoolid = "schoolid"),
+    random = school_random(),
+    data = hsb
+  )
+  expect_identical(mlm_spec_equations(sg)$equations, mlm_latex_equations(quiet_fit(sg))$equations)
+})
