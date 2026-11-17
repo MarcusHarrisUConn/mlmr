@@ -53,6 +53,7 @@ reference:
 - title: Specify and fit models
   contents:
   - example_hsb
+  - example_longitudinal
   - mlm_spec
   - mlm_formula
   - mlm_fit
@@ -65,7 +66,10 @@ reference:
 - title: Report models
   contents:
   - mlm_apa_tables
+  - mlm_r2
+  - mlm_reliability
   - mlm_publication_bundle
+  - mlm_write_publication_bundle
   - mlm_methods_text
   - mlm_reproducibility_check
   - mlm_software_table

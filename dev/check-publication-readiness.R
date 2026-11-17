@@ -4,37 +4,26 @@ stop_if_not <- function(ok, message) {
   if (!isTRUE(ok)) stop(message, call. = FALSE)
 }
 
-same_file <- function(path_a, path_b) {
-  stop_if_not(file.exists(path_a), paste("Missing file:", path_a))
-  stop_if_not(file.exists(path_b), paste("Missing file:", path_b))
-  identical(readLines(path_a, warn = FALSE), readLines(path_b, warn = FALSE))
-}
-
 stop_if_not(
-  same_file("R/mlm_core.R", "inst/app/R/mlm_core.R"),
-  "Backend copy drift detected: R/mlm_core.R and inst/app/R/mlm_core.R differ. Run Rscript dev/sync-app.R."
+  file.exists("inst/app/app.R") && file.exists("inst/app/www/style.css"),
+  "Missing bundled app entrypoint or stylesheet under inst/app/."
 )
 
 stop_if_not(
-  same_file("app.R", "inst/app/app.R"),
-  "App copy drift detected: app.R and inst/app/app.R differ. Run Rscript dev/sync-app.R."
+  !dir.exists("inst/app/R") && !file.exists("www/style.css") && !file.exists("R/mlm_core.R"),
+  "Legacy duplicated app/backend files detected. All package and Shiny code must live in single-source R/ modules."
 )
 
-stop_if_not(
-  same_file("www/style.css", "inst/app/www/style.css"),
-  "CSS copy drift detected: www/style.css and inst/app/www/style.css differ. Run Rscript dev/sync-app.R."
-)
-
-app_files <- c("app.R", "inst/app/app.R")
+code_files <- c(list.files("R", pattern = "\\.[Rr]$", full.names = TRUE), "app.R", "inst/app/app.R")
 external_runtime_pattern <- "cdn\\.jsdelivr|mathjax\\.rstudio\\.com|MathJax\\.js|https://.*\\.js"
-external_runtime_hits <- unlist(lapply(app_files[file.exists(app_files)], function(path) {
+external_runtime_hits <- unlist(lapply(code_files[file.exists(code_files)], function(path) {
   lines <- readLines(path, warn = FALSE)
   hits <- grep(external_runtime_pattern, lines, value = TRUE)
   if (length(hits)) paste(path, hits, sep = ": ")
 }))
 
 stop_if_not(!length(external_runtime_hits), paste(c(
-  "External runtime JavaScript references found in app files:",
+  "External runtime JavaScript references found in app/package files:",
   external_runtime_hits
 ), collapse = "\n"))
 
@@ -42,6 +31,7 @@ public_files <- c(
   "README.md",
   "BETA_TESTING.md",
   "DEMO.md",
+  "CONTRIBUTING.md",
   "paper/paper.md",
   "paper/ARTICLE_READINESS.md",
   "paper/SCREENSHOT_CHECKLIST.md",
@@ -51,7 +41,7 @@ public_files <- c(
   "vignettes/hlm-parity-and-validation.Rmd"
 )
 
-local_path_pattern <- "C:\\\\Users|AppData|mah22013"
+local_path_pattern <- "C:\\\\Users|AppData|mah22013|/Users/marcusharris"
 local_path_hits <- unlist(lapply(public_files[file.exists(public_files)], function(path) {
   lines <- readLines(path, warn = FALSE)
   hits <- grep(local_path_pattern, lines, value = TRUE)
@@ -101,6 +91,7 @@ if (length(tarballs)) {
     "C:\\\\Users",
     "AppData",
     "mah22013",
+    "/Users/marcusharris",
     sep = "|"
   )
   artifact_hits <- grep(excluded_pattern, files, value = TRUE)

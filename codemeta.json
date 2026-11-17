@@ -7,8 +7,9 @@
   "issueTracker": "https://github.com/MarcusHarrisUConn/mlmr/issues",
   "license": "https://spdx.org/licenses/MIT",
   "version": "0.1.0",
+  "datePublished": "2026-11-17",
   "programmingLanguage": "R",
-  "runtimePlatform": "R",
+  "runtimePlatform": "R (>= 4.1.0)",
   "applicationCategory": "Statistics",
   "keywords": [
     "R",
@@ -16,6 +17,7 @@
     "multilevel modeling",
     "mixed-effects models",
     "HLM",
+    "longitudinal models",
     "reproducible research"
   ],
   "author": [
@@ -37,11 +39,20 @@
     "email": "marcus.harris.uconn@gmail.com"
   },
   "softwareRequirements": [
-    "R",
+    "R (>= 4.1.0)",
     "shiny",
     "bslib",
     "lme4",
     "ggplot2"
+  ],
+  "softwareSuggestions": [
+    "haven",
+    "knitr",
+    "lmerTest",
+    "pbkrtest",
+    "readxl",
+    "rmarkdown",
+    "testthat (>= 3.0.0)"
   ],
   "url": "https://marcusharrisphd.com/mlmr/"
 }

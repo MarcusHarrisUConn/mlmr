@@ -1,53 +1,41 @@
 # Contributing to mlmr
 
-Thank you for helping test `mlmr`.
-
-The project is currently in an early public-beta stage. Feedback is especially
-useful when it is tied to a concrete model, dataset structure, or reporting
-workflow.
+Thank you for helping test and improve `mlmr`.
 
 ## Useful Feedback
 
 Please open a GitHub issue if you notice:
 
-- a model that should fit but fails;
+- a model specification that should fit but fails;
 - confusing model-building language;
-- incorrect or unclear equations;
+- incorrect or unclear equations or Tau matrix labels;
 - APA table formatting problems;
-- uploaded data that the app handles poorly;
+- uploaded data files that the app handles poorly;
 - diagnostics that are missing or hard to interpret;
-- places where the generated R code does not reproduce the app output.
+- places where exported R code, Quarto reports, or LaTeX do not match the app.
 
-## Good Issue Reports
+## Development Workflow
 
-When possible, include:
+All modeling, reporting, and Shiny UI/server code live in modular single-source
+files under `R/`, with the stylesheet in `inst/app/www/style.css` (no duplicate
+copy syncing is needed).
 
-- the app tab or workflow step where the problem occurred;
-- the model structure you were trying to fit;
-- whether you used the example data or uploaded data;
-- screenshots of confusing output;
-- the generated R code if the problem involves reproducibility;
-- any warning or error text.
-
-## Development Notes
-
-Before submitting changes, run:
+Before opening a pull request, run:
 
 ```r
+source("dev/check-publication-readiness.R")
+devtools::test()
+```
+
+And run a full CRAN-style package check:
+
+```sh
 R CMD build .
-R CMD check --no-manual --no-build-vignettes mlmr_0.1.0.tar.gz
+R CMD check --no-manual --as-cran mlmr_0.1.0.tar.gz
 ```
 
-The bundled Shiny app in `inst/app/` runs from mirrored copies of
-`R/mlm_core.R`, `app.R`, and `www/style.css`. After editing any of those files,
-refresh the copies:
-
-```r
-Rscript dev/sync-app.R
-```
-
-Tests live in `tests/testthat/` and can be run with `devtools::test()`. They
-cover model specification and validation, centering, formula generation,
-level-by-level equations and Tau matrices, APA tables, reproducible-code
-round trips, readiness checks, and app/package synchronization.
-`tests/backend-tests.R` keeps the original end-to-end smoke test.
+Tests live in `tests/testthat/` and cover model specification, centering,
+formula generation, readiness guardrails, equations, APA tables, $R^2$ and
+reliability, denominator degrees of freedom, complete-case diagnostics, LRT
+model comparisons, `.zip` publication bundles, reproducible-code round trips,
+and Shiny server workflows.

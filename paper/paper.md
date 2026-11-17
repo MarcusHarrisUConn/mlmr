@@ -12,83 +12,60 @@ authors:
 affiliations:
   - name: University of Connecticut
     index: 1
-date: 2026-07-01
+date: 2026-11-17
 bibliography: paper.bib
 ---
 
 # Summary
 
-`mlmr` is an open-source R package and Shiny application for fitting,
-understanding, and reporting multilevel and mixed-effects models. The software
-is designed as a free, reproducible alternative to expensive HLM-style
-graphical workflows: users can build models through a guided interface while
-retaining transparent `lme4` syntax, equations, diagnostics, APA-style tables,
-and manuscript-ready exports.
+`mlmr` is an open-source R package and Shiny application for specifying,
+fitting, understanding, and reporting multilevel and mixed-effects models. The
+software provides a free, reproducible alternative to proprietary HLM-style
+graphical workflows: users construct models through a guided level-based
+interface while retaining transparent `lme4` [@lme4] and `lmerTest` [@lmerTest]
+syntax, hierarchical equations, labeled Tau covariance matrices, diagnostics,
+APA-style tables, effect sizes, and manuscript-ready `.zip` export bundles.
 
 # Statement of Need
 
-Multilevel and mixed-effects models are now routine in education, psychology,
-health, organizational research, and other fields where observations are
-clustered or repeatedly measured. Many students and applied researchers first
-learn these models through level-based graphical workflows, but publication and
-open-science workflows increasingly require reproducible code, transparent
-software versions, and portable analysis records.
+Multilevel and mixed-effects models are routine across education, psychology,
+health sciences, and organizational research whenever observations are nested in
+clusters or repeated over time [@raudenbush2002]. Students and applied
+researchers frequently learn multilevel modeling through level-by-level
+equations and point-and-click menus, whereas modern publication and open-science
+standards demand executable R scripts, explicit centering documentation
+[@enders2007], software version reporting, and portable replication archives.
 
-`mlmr` bridges these needs. The graphical interface lets users reason in terms
-of outcomes, grouping factors, predictor levels, centering decisions, random
-effects, and interactions. The backend keeps the model as ordinary R code built
-on `lme4` [@lme4], so users can inspect, rerun, modify, and publish the full
-analysis.
+`mlmr` bridges these two workflows. The Shiny application [@shiny] lets users
+declare outcomes, grouping structures, Level 1–3 predictors, grand-mean and
+cluster-mean centering, interactions, and per-level random effects without
+memorizing formula syntax. Every graphical choice translates deterministically
+into an exported `mlm_spec` object and standalone `lme4` script in R [@R].
 
-The package is not intended to replace statistical judgment or specialist
-software for every possible mixed-model design. Instead, it provides a free,
-teachable, and reproducible workflow for common HLM-style modeling tasks.
+# Architecture and Functionality
 
-# Design
+`mlmr` is organized as a single-source R package in which both the interactive
+Shiny interface (`run_mlmr()`) and programmatic R helpers share the same
+validated modeling and reporting engine:
 
-`mlmr` has two connected surfaces. First, the Shiny application [@shiny] guides
-users through data review, model specification, estimation, diagnostics,
-results, equations, and exports. Second, the package exposes backend functions
-for users who want to script the same workflow directly in R [@R].
-
-The design principle is that every GUI decision should leave a reproducible
-trace. Centering choices, random-effect structures, model formulas, software
-versions, APA-style tables, equations, diagnostics, and report text can all be
-exported or recreated from package functions.
-
-# Functionality
-
-The package currently supports two- and three-level nested workflows,
-random-intercept and random-slope models, centering decisions, interactions,
-model diagnostics, equation displays, APA tables, software citations, and
-Quarto/R/LaTeX exports. Gaussian linear mixed models are the primary production
-workflow. GLMM presets are available as advanced workflows with explicit
-link-scale, Wald-inference, and family-specific reporting cautions. The function
-`mlm_hlm8_parity()` tracks HLM-style feature parity, while
-`mlm_validation_benchmarks()` and `mlm_validation_report()` provide
-deterministic validation templates and fitted-output summaries for regression
-testing.
-
-The main user workflow is:
-
-1. review data, grouping factors, missingness, and variable roles;
-2. select model templates or specify a custom model;
-3. choose centering, interactions, and random effects;
-4. fit or refit the model;
-5. inspect equations, tables, diagnostics, and model comparisons;
-6. export reproducible R code, Quarto reports, LaTeX equations, APA tables,
-   software statements, and publication-readiness materials.
+- **Designs and estimation**: two- and three-level nested linear mixed models,
+  longitudinal growth curves (`example_longitudinal()`), cross-classified random
+  effects, and advanced generalized linear mixed models (binomial, Poisson,
+  negative binomial, and Gamma) with optional Satterthwaite and Kenward-Roger
+  denominator degrees of freedom [@lmerTest].
+- **Data import and readiness guardrails**: CSV, TSV, Excel, SPSS, SAS, and
+  Stata uploads (with automatic conversion of `haven` value labels), paired with
+  pre-fit readiness checks for nesting hierarchy, random-slope within-cluster
+  variation, omitted interaction main effects, constant or high-cardinality
+  predictors, and binomial separation.
+- **Equations and reporting**: hierarchical ($\beta/\gamma$ and
+  $\pi/\beta/\gamma$) and mixed-model LaTeX/HTML equations, row/column-labeled
+  Tau covariance matrices, APA 7th tables, marginal and conditional $R^2$
+  [@nakagawa2017], empirical Bayes random-intercept reliability
+  [@raudenbush2002], complete-case diagnostic graphics [@ggplot2], ML-refit
+  likelihood-ratio comparisons, and one-click `.zip` publication bundles.
 
 # Example Analysis
-
-The package includes a built-in HSB-style educational dataset generator. The
-example data include student-level predictors, school-level predictors,
-categorical variables, interactions, and multiple grouping identifiers. This
-lets instructors and users demonstrate random-intercept models, random-slope
-models, cross-level interaction-style terms, and three-level structures without
-requiring external files.
-
-A typical analysis begins with:
 
 ```r
 dat <- mlmr::example_hsb()
@@ -96,53 +73,36 @@ spec <- mlmr::mlm_spec(
   outcome = "mathscore",
   fixed = list(
     ses = list(center = "CWC"),
-    meanses = list(center = "GMC")
+    meanses = list(center = "GMC"),
+    sector = list(center = "none")
   ),
   grouping = list(schoolid = "schoolid"),
   random = list(
     schoolid = list(intercept = TRUE, slopes = "ses", correlation = TRUE)
   ),
+  interactions = list(c("ses", "sector")),
   data = dat
 )
-fit <- mlmr::mlm_fit(spec)
+fit <- mlmr::mlm_fit(spec, df_method = "satterthwaite")
 mlmr::mlm_apa_tables(fit)
+mlmr::mlm_r2(fit)
+mlmr::mlm_reliability(fit)
 mlmr::mlm_latex_equations(fit)
 ```
 
-The same model can be constructed in the GUI and exported as reproducible code.
+# Validation and Availability
 
-# Validation
+Continuous integration runs `R CMD check --as-cran` across Windows, macOS, and
+Linux (R-release and R-devel). In addition to unit and `shiny::testServer()`
+regression suites, `mlm_validation_benchmarks(run = TRUE)` validates eight
+deterministic reference specifications (null, random-intercept, random-slope,
+cross-level interaction, three-level nested, crossed, longitudinal growth, and
+binary logistic GLMM) against stored fixed-effect estimates, standard errors,
+variance components, ICCs, and automated round-trip execution of exported R
+scripts.
 
-The package includes backend tests for formula generation, centering,
-estimation, tables, equations, diagnostics, supported-model scope,
-publication bundles, and reproducible-code exports. Continuous integration
-runs `R CMD check` across major platforms.
-
-The validation helper `mlm_validation_report()` fits deterministic benchmark
-models and returns benchmark status, fixed effects, variance components,
-intraclass correlations, and diagnostics. These benchmarks currently cover
-null, random-intercept, random-slope, cross-level interaction, and three-level
-models. This report is available from both R and the Shiny app.
-
-Before journal submission, the benchmark suite should be expanded to include
-stored reference estimates, standard errors, variance components, ICCs,
-diagnostic expectations, and exported-code checks across supported model
-families.
-
-# Documentation and Availability
-
-The package includes vignettes for getting started, supported models, equations
-and reporting, and HLM-style parity and validation. The CRAN-style package
-check currently passes with no errors or warnings in local rehearsal. The
-source package builds vignettes into `inst/doc`, and the reference manual is
-generated from the package help pages.
-
-The source code is available at <https://github.com/MarcusHarrisUConn/mlmr>.
-Documentation is available at <https://marcusharrisphd.com/mlmr/>.
-
-# Acknowledgements
-
-`mlmr` builds on the R ecosystem, including `lme4` for model fitting, Shiny for
-the graphical interface, and `ggplot2` [@ggplot2] for diagnostic graphics.
+Source code is available under the MIT License at
+<https://github.com/MarcusHarrisUConn/mlmr>, with documentation at
+<https://marcusharrisphd.com/mlmr/>.
 
 # References

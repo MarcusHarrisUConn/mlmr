@@ -2,17 +2,25 @@
 \alias{mlm_apa_tables}
 \alias{mlm_equations}
 \alias{mlm_latex_equations}
-\title{Create Tables and Equations for a Fitted mlmr Model}
+\alias{mlm_r2}
+\alias{mlm_reliability}
+\title{Create Tables, Effect Sizes, and Equations for a Fitted mlmr Model}
 \usage{
 mlm_apa_tables(result, format = c("list", "html", "latex"),
   exponentiate = FALSE)
+
+mlm_r2(result)
+
+mlm_reliability(result)
 
 mlm_equations(result)
 
 mlm_latex_equations(result)
 }
 \arguments{
-\item{result}{A fitted result returned by \code{\link{mlm_fit}}.}
+\item{result}{A fitted result returned by \code{\link{mlm_fit}} (or a fitted
+\pkg{lme4} \code{merMod} object for \code{mlm_r2()} and
+\code{mlm_reliability()}).}
 \item{format}{Output format for APA tables: \code{"list"}, \code{"html"}, or
 \code{"latex"}. The list format returns individual data frames; HTML and LaTeX
 formats return complete manuscript-oriented table documents.}
@@ -20,55 +28,33 @@ formats return complete manuscript-oriented table documents.}
 generalized model with a logit or log link gains exponentiated coefficients and
 their intervals: odds ratios (\code{OR}) for logit models, incidence rate
 ratios (\code{IRR}) for Poisson and negative-binomial models, and
-\code{exp(b)} for other log-link models. Ignored for Gaussian models and other
-links.}
+\code{exp(b)} for other log-link models.}
 }
 \description{
-Creates manuscript-oriented outputs from a fitted \pkg{mlmr} model. These
-helpers return APA-style tables, level-by-level equations, combined equations,
-and LaTeX equation displays.
+Creates manuscript-oriented outputs from a fitted \pkg{mlmr} model, including
+APA-style tables, marginal and conditional \eqn{R^2}, HLM-style random-intercept
+reliability summaries, level-by-level equations, and combined equations.
 }
 \value{
 \code{mlm_apa_tables()} returns a named list of tables, an HTML document, or a
-LaTeX document. \code{mlm_equations()} returns plain-text equation descriptions.
-\code{mlm_latex_equations()} returns a list with the level labels
-(\code{level}), one LaTeX string per level (\code{equations}), the combined
-equation (\code{combined}), one Tau matrix display per grouping factor
-(\code{tau}), a coefficient key linking each equation symbol to a fixed-effect
-estimate (\code{key}), the notation used (\code{notation}), and a short
-explanatory note (\code{note}).
+LaTeX document. \code{mlm_r2()} returns a one-row data frame containing marginal
+and conditional \eqn{R^2} and variance components. \code{mlm_reliability()}
+returns a data frame of empirical Bayes random-intercept reliabilities across
+clusters for Gaussian models. \code{mlm_equations()} returns plain-text equation
+descriptions. \code{mlm_latex_equations()} returns a list with level labels
+(\code{level}), plain-language notes (\code{level_notes}), one LaTeX string per
+level (\code{equations}), the combined equation (\code{combined}), one Tau
+matrix display per grouping factor (\code{tau}), a coefficient key (\code{key}),
+the notation used (\code{notation}), and a summary note (\code{note}).
 }
 \details{
-The fixed-effects table includes estimates, standard errors, large-sample test
-statistics, p values, and Wald 95 percent confidence intervals. For Gaussian
-mixed models fit with \pkg{lme4}, p values are large-sample normal
-approximations rather than denominator-degrees-of-freedom tests. For generalized
-mixed models, p values and intervals are Wald approximations on the link scale.
-Treat these values as screening evidence unless a confirmatory inferential
-method is selected and documented.
-
-Classical ICC tables are returned for Gaussian mixed models. For generalized
-mixed models, \pkg{mlmr} suppresses classical ICC output and asks users to choose
-a model-family-specific latent- or observation-scale ICC method before reporting
-ICC values.
-
-\code{mlm_latex_equations()} writes two- and three-level nested models in
-hierarchical (level-by-level) notation. Predictors are assigned to levels from
-the fitted data: a predictor that is constant within every unit of a grouping
-factor is treated as measured at that level. Level-1 predictors appear in the
-Level-1 equation, higher-level predictors appear in the intercept equation, and
-cross-level interactions appear in the equation for the lower-level slope they
-moderate, so \eqn{\gamma_{11}} is the effect of the first Level-2 predictor on
-the first Level-1 slope. Equations are built from the fitted coefficients, so
-each dummy code of a categorical predictor has its own coefficient and the
-indices of the random effects in the Tau matrices match the equations.
-Three-level models use \eqn{\pi}, \eqn{\beta}, and \eqn{\gamma} coefficients.
-Generalized models are written for the linear predictor \eqn{\eta} with the
-link function shown and no Level-1 residual. Models with crossed grouping
-factors, or more than three levels, are written as a single mixed-model
-equation instead. These outputs are meant to support manuscript preparation
-and teaching; users should review notation and substantive labels before
-publication.
+When \code{result} was fit with Satterthwaite or Kenward-Roger degrees of
+freedom, \code{mlm_apa_tables()} includes a \code{df} column and \eqn{t}-based
+intervals. \code{mlm_r2()} implements the variance-partitioning framework of
+Nakagawa, Johnson, and Schielzeth (2017) with random-slope variance contributions
+from Johnson (2014). \code{mlm_reliability()} computes the mean and range of
+cluster-specific random-intercept reliabilities following Raudenbush and Bryk
+(2002).
 }
 \examples{
 dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)
@@ -82,5 +68,7 @@ spec <- mlm_spec(
 )
 result <- mlm_fit(spec)
 mlm_apa_tables(result)
+mlm_r2(result)
+mlm_reliability(result)
 mlm_latex_equations(result)
 }

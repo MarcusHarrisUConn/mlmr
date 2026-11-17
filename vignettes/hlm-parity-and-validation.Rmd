@@ -10,123 +10,67 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  eval = FALSE
+  comment = "#>"
 )
 ```
 
 ## Purpose
 
-`mlmr` is intended to provide a free, reproducible, HLM-style graphical
-workflow for multilevel modeling in R. That goal requires more than a friendly
-interface: users, instructors, reviewers, and CRAN maintainers should be able
-to see what the package supports and how core workflows are validated.
-
-This vignette describes the package's HLM-style parity tracker and validation
-benchmarks.
+`mlmr` provides a free, reproducible, HLM-style graphical workflow for
+multilevel modeling in R. Users, instructors, and reviewers should be able to
+inspect both the supported feature matrix and the deterministic validation
+benchmarks that protect core workflows against regressions.
 
 ## HLM-Style Feature Parity
 
-The app is not a clone of commercial HLM software. Instead, it is a guided R
-workflow that covers the core teaching and publication tasks many HLM users
-expect:
+`mlmr` covers the core teaching and publication workflows expected from
+level-based multilevel software while keeping every step grounded in `lme4`:
 
-- unconditional/null models;
-- random-intercept models;
-- random-slope models;
-- cross-level interactions;
-- two-level and three-level nested models;
-- centering decisions;
-- variance components and ICCs;
-- equation displays;
-- diagnostics;
-- publication tables;
-- reproducible syntax export.
-
-The current parity table can be inspected from R:
-
-```{r parity}
-mlmr::mlm_hlm8_parity()
+```{r parity, eval = TRUE}
+knitr::kable(mlmr::mlm_hlm8_parity())
 ```
 
-The same table appears in the Shiny app on the **About** tab. The table labels
-features as supported, experimental, planned, or out of current scope so users
-do not mistake roadmap items for production features.
+## Deterministic Validation Benchmarks
 
-## Validation Benchmarks
+`mlmr` ships eight deterministic benchmark specifications covering two-level
+null, random-intercept, random-slope, cross-level interaction, three-level
+nested, cross-classified, longitudinal growth, and binary logistic GLMM
+workflows.
 
-`mlmr` includes deterministic benchmark models that exercise the core
-HLM-style workflows. These benchmarks are designed to protect the package from
-regressions as the GUI and backend continue to evolve.
+By default (`run = FALSE`), `mlm_validation_benchmarks()` checks expected
+formulas and model-readiness guardrails without fitting models:
 
-```{r benchmarks}
-mlmr::mlm_validation_benchmarks()
+```{r benchmarks, eval = TRUE}
+knitr::kable(mlmr::mlm_validation_benchmarks(run = FALSE)[, c(
+  "Benchmark", "Expected Formula", "Formula Match", "Readiness Stops", "Validation Status"
+)])
 ```
 
-The benchmark suite currently covers:
+## Fitted Benchmark & Round-Trip Code Verification
 
-- a null model;
-- a random-intercept model;
-- a random-slope model;
-- a cross-level interaction model;
-- a three-level model.
+When `run = TRUE`, `mlm_validation_benchmarks()` fits all eight benchmark
+models and verifies:
 
-By default, the helper checks expected formulas and model-readiness status
-without fitting models. This keeps examples light enough for routine
-documentation use.
+- AIC agreement against stored reference values;
+- fixed-effect point estimates and standard errors;
+- random-intercept variance components and Gaussian ICCs;
+- automated round-trip execution of the exported R script (`Repro Code Match`)
+  in an isolated R environment to confirm that exported code reproduces the
+  exact fitted coefficients.
 
-## Fitted Benchmark Validation
-
-When `run = TRUE`, the helper fits the benchmark models and compares fitted
-AIC values with deterministic reference values:
-
-```{r fit-benchmarks}
+```{r fit-benchmarks, eval = FALSE}
 mlmr::mlm_validation_benchmarks(run = TRUE)
 ```
 
-Small numerical differences can occur across R, `lme4`, BLAS/LAPACK, or
-operating-system versions. The `tolerance` argument controls the acceptable
-absolute AIC difference.
-
 ## Reviewer-Facing Validation Report
 
-For CRAN review, software-paper review, or teaching documentation, the package
-can generate a fuller validation report:
+To generate a complete multi-table validation object from R or download it from
+the **About** tab of the Shiny app:
 
-```{r validation-report}
+```{r validation-report, eval = FALSE}
 report <- mlmr::mlm_validation_report()
 names(report)
 ```
 
-The report includes:
-
-- benchmark formulas and AIC validation status;
-- fixed effects for each benchmark model;
-- variance components;
-- intraclass correlations;
-- diagnostics and convergence checks.
-
-The Shiny app exposes the same evidence through the **About** tab:
-
-1. open **About**;
-2. review **HLM-Style Feature Parity**;
-3. click **Run Fit Validation**;
-4. download the **Validation Report**.
-
-## How to Interpret Validation
-
-Validation evidence does not mean every applied model is automatically correct,
-and it does not yet constitute independent equivalence testing against HLM,
-textbook examples, or published benchmark data. It means the software's core
-model-building, equation, diagnostic, and export pathways are being checked
-against deterministic examples.
-
-For a peer-reviewed software paper, the benchmark suite should be extended with
-stored reference estimates, standard errors, variance components, ICCs, and
-diagnostic expectations from independent examples. Until then, the validation
-helpers should be described as regression tests and reviewer-facing transparency,
-not as proof that every supported model family has been independently validated.
-
-Users remain responsible for deciding whether their design, sample size,
-missing-data strategy, centering choices, random-effects structure, and
-interpretation are appropriate for their research question.
+The report bundles benchmark status, fixed effects, variance components, ICCs,
+Nakagawa $R^2$, and convergence diagnostics across all eight reference models.

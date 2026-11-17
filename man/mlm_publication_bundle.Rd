@@ -2,6 +2,7 @@
 \alias{mlm_reproducibility_check}
 \alias{mlm_methods_text}
 \alias{mlm_publication_bundle}
+\alias{mlm_write_publication_bundle}
 \title{Create Publication and Reproducibility Materials}
 \usage{
 mlm_reproducibility_check(result, REML = NULL, optimizer = NULL,
@@ -11,37 +12,40 @@ mlm_methods_text(result, REML = NULL, optimizer = NULL, maxfun = NULL)
 
 mlm_publication_bundle(result, REML = NULL, optimizer = NULL,
   maxfun = NULL)
+
+mlm_write_publication_bundle(result, file, REML = NULL, optimizer = NULL,
+  maxfun = NULL)
 }
 \arguments{
 \item{result}{A fitted result returned by \code{\link{mlm_fit}}.}
-\item{REML, optimizer, maxfun}{Estimation settings to report. These are
-normally left as \code{NULL}: the estimator is read from the fitted model and
-the optimizer settings from the values recorded by \code{\link{mlm_fit}}, so
-the reported settings cannot contradict the model. The arguments are used only
-for results that do not carry recorded settings.}
+\item{file}{Destination path ending in \code{.zip} for
+\code{mlm_write_publication_bundle()}.}
+\item{REML, optimizer, maxfun}{Estimation settings to report. Normally left as
+\code{NULL} so settings are read directly from the fitted model.}
 }
 \description{
-Creates publication-oriented reproducibility materials for a fitted
-\pkg{mlmr} model.
+Creates publication-oriented reproducibility materials and downloadable archive
+bundles for a fitted \pkg{mlmr} model.
 }
 \details{
 \code{mlm_reproducibility_check()} returns a checklist covering the formula,
-data footprint, estimator settings, centering decisions, random-effects
-structure, convergence, singularity, reporting outputs, and software versions.
+data footprint, estimator and degrees-of-freedom settings, centering decisions,
+random-effects structure, convergence, singularity, reporting outputs, and
+software versions.
 
-The reproducible R code in the bundle is a complete script: given the original
-data frame as \code{dat}, it selects the analysis sample, recreates the
-centered predictors, and refits the same model.
-
-\code{mlm_methods_text()} returns copy-ready prose that should be reviewed and
-adapted before publication. \code{mlm_publication_bundle()} combines the
-methods text, reproducibility checklist, software statement, formula, APA
-tables, equations, and reproducible R code into a named list.
+\code{mlm_methods_text()} returns copy-ready prose to review and adapt.
+\code{mlm_publication_bundle()} combines methods text, checklist, software
+statement, formula, APA tables, equations, and reproducible R code into a named
+list. \code{mlm_write_publication_bundle()} writes a complete \code{.zip}
+archive containing the Quarto report, standalone R script, LaTeX file, HTML APA
+tables, checklist CSV, and software versions CSV.
 }
 \value{
 \code{mlm_reproducibility_check()} returns a data frame.
 \code{mlm_methods_text()} returns a character string.
 \code{mlm_publication_bundle()} returns a named list of publication materials.
+\code{mlm_write_publication_bundle()} invisibly returns the path to the created
+\code{.zip} archive.
 }
 \examples{
 dat <- example_hsb(n_schools = 4, min_students = 5, max_students = 6)

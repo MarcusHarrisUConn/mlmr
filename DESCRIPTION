@@ -7,25 +7,32 @@ Description: Provides a guided Shiny interface and reusable R helpers for
     models with 'lme4' (Bates, Maechler, Bolker, and Walker, 2015,
     <doi:10.18637/jss.v067.i01>). The package supports grand-mean and
     cluster-mean centering (Enders and Tofighi, 2007,
-    <doi:10.1037/1082-989X.12.2.121>), nested and crossed random-effects
-    structures, interaction terms, level-by-level and combined equations,
-    APA-style tables, diagnostics, reproducible code, and software citation
-    support for manuscript workflows.
+    <doi:10.1037/1082-989X.12.2.121>), nested, longitudinal, and crossed
+    random-effects structures, interaction terms, optional Satterthwaite and
+    Kenward-Roger denominator degrees of freedom via 'lmerTest' (Kuznetsova,
+    Brockhoff, and Christensen, 2017, <doi:10.18637/jss.v082.i13>), marginal
+    and conditional R-squared (Nakagawa, Johnson, and Schielzeth, 2017,
+    <doi:10.1098/rsif.2017.0213>), random-intercept reliability, level-by-level
+    and combined equations, APA-style tables, diagnostics, reproducible R code,
+    and publication archive bundles.
 License: MIT + file LICENSE
 URL: https://marcusharrisphd.com/mlmr/, https://github.com/MarcusHarrisUConn/mlmr
 BugReports: https://github.com/MarcusHarrisUConn/mlmr/issues
 Encoding: UTF-8
 Language: en-US
 Depends:
-    R (>= 3.6.0)
+    R (>= 4.1.0)
 Imports:
     shiny,
     bslib,
     lme4,
-    ggplot2
+    ggplot2,
+    tools
 Suggests:
     haven,
     knitr,
+    lmerTest,
+    pbkrtest,
     readxl,
     rmarkdown,
     testthat (>= 3.0.0)

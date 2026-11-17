@@ -18,24 +18,15 @@ knitr::opts_chunk$set(
 
 `mlmr` is an open-source Shiny app and R toolkit for fitting, understanding,
 and reporting mixed-effects and multilevel models in R. It is designed for
-researchers who want a guided modeling workflow while keeping the underlying R
-code visible and reproducible.
+researchers and students who want a guided level-based modeling workflow while
+keeping the underlying `lme4` code visible and reproducible.
 
-The app is built around four practical goals:
-
-- specify a model without hiding the formula;
-- make centering and random-effects choices explicit;
-- show equations, variance components, and Tau matrix structure;
-- export tables, code, LaTeX, and Quarto-ready reports.
-
-## Install the Public Beta
+## Install and Load
 
 ```{r install, eval = FALSE}
-install.packages("remotes")
-remotes::install_github("MarcusHarrisUConn/mlmr")
+install.packages("pak")
+pak::pak("MarcusHarrisUConn/mlmr")
 ```
-
-Then load the package:
 
 ```{r load}
 library(mlmr)
@@ -47,100 +38,37 @@ library(mlmr)
 mlmr::run_mlmr()
 ```
 
-The app opens with a built-in HSB-style example so users can test the full
-workflow before uploading their own data.
+The app opens with two built-in example datasets:
 
-Uploaded data can be provided as CSV, TSV/TXT, Excel, SPSS, SAS, or Stata files.
-Excel support uses the optional `readxl` package, and SPSS/SAS/Stata support
-uses the optional `haven` package.
+- **HSB Educational** (`example_hsb()`): students nested within schools and
+  districts (plus crossed teacher IDs, binary `passmath`, and count `absences`);
+- **Longitudinal Growth** (`example_longitudinal()`): repeated measurement waves
+  nested within students and schools.
 
-## How the Interface Is Organized
+Uploaded data can be provided as CSV, TSV/TXT, Excel (`.xlsx`/`.xls` via
+`readxl`), or SPSS, SAS, and Stata files (`.sav`, `.por`, `.sas7bdat`, `.xpt`,
+`.dta` via `haven`, including automatic handling of value labels and variable
+labels).
 
-The app uses a small number of main tabs so users can move from data to model
-results without losing the thread of the analysis.
-
-- **Data** is for selecting the built-in example, uploading files, checking
-  missingness, and reviewing variable roles.
-- **Model** is for declaring the outcome, grouping factors, predictor levels,
-  centering choices, interactions, and random-effects structure.
-- **Estimate** is for fitting or refitting the model and reviewing model
-  readiness before estimation.
-- **Results** is for model summaries, APA-style tables, equations, diagnostics,
-  and comparison tools.
-- **Report & Code** is for reproducible R code, raw LaTeX, and report exports.
-
-The public documentation site includes screenshots of these screens:
-
-<https://marcusharrisphd.com/mlmr/>
-
-The current supported-models scope is documented in:
+## Current Scope
 
 ```{r supported-models}
-mlmr::mlm_supported_models()
-```
-
-For a longer discussion, see:
-
-```{r supported-vignette, eval = FALSE}
-vignette("supported-models", package = "mlmr")
+mlmr::mlm_supported_models()[, c("Area", "Status")]
 ```
 
 ## Recommended First Workflow
 
-1. Open the app.
-2. Keep the example dataset selected on the **Data** tab.
-3. Review grouping factors and variable roles.
-4. Move to **Model** and inspect the preset outcome, predictors, centering, and
-   random-effects choices.
-5. Click **Fit Example Model** from **Data > Overview**, or move to
-   **Estimate** and click **Fit Example Model**.
-6. Open **Results** to review the dashboard, APA tables, equations,
-   interpretation, diagnostics, and model comparison panels.
-7. Open **Report & Code** to export reproducible R code, raw LaTeX, APA tables,
-   or a Quarto-ready report.
-
-## What the Example Demonstrates
-
-The built-in example includes a student outcome, student-level predictors,
-school-level predictors, categorical predictors, interactions, and random
-effects. It is intentionally more complex than a minimal random-intercept model
-so users can see why mixed-effects and multilevel models are useful.
-
-The example currently demonstrates:
-
-- cluster-mean centering for lower-level predictors;
-- grand-mean centering for contextual predictors;
-- dummy coding for categorical predictors;
-- random intercepts and random slopes;
-- fixed interactions and cross-level interaction-style terms;
-- APA-style tables;
-- level-by-level equations and combined equations;
-- Tau variance-covariance matrix display.
-
-## Reproducibility
-
-Every model fit in `mlmr` is paired with reproducible code. The **Report & Code**
-tab exports the analysis code and the raw LaTeX used for tables and equations.
-
-The long-term goal is that users can move from the graphical workflow to a
-scripted R workflow without losing any modeling decisions.
-
-## PDF Manual and Help Pages
-
-Like other R packages, `mlmr` has function help pages that can be viewed with:
-
-```{r help, eval = FALSE}
-?run_mlmr
-help(package = "mlmr")
-```
-
-CRAN automatically creates a PDF reference manual from those help pages after a
-package is accepted. During beta development, the pkgdown website and vignettes
-are the main user-facing manuals because they explain the workflow in context.
-
-## Current Status
-
-`mlmr` is in public beta. The current version is suitable for structured demo
-testing, teaching, and feedback. Users should still independently verify model
-specification, convergence, diagnostics, and interpretation before using fitted
-results in production research.
+1. Launch `mlmr::run_mlmr()`.
+2. Keep the built-in HSB dataset selected on the **Data** tab (or click **Fit
+   Example Model** directly from **Data > Overview**).
+3. Inspect **Model** to review the outcome, declared Level 1/2/3 predictors,
+   grand-mean and cluster-mean centering, interactions, and the live Tau
+   covariance preview.
+4. On **Estimate**, select your preferred Gaussian degrees-of-freedom method
+   (large-sample normal, Satterthwaite via `lmerTest`, or Kenward-Roger via
+   `pbkrtest`), verify **Model Readiness**, and click **Fit Model**.
+5. Explore **Results** for dashboard summaries, APA tables, $R^2$ and
+   random-intercept reliability, hierarchical equations, diagnostics, and
+   likelihood-ratio model comparisons.
+6. Open **Report & Code** to download a `.qmd` report, standalone `.R` script,
+   `.tex` tables/equations, or a complete `.zip` publication bundle.

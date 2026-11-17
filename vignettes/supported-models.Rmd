@@ -10,8 +10,7 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(
   collapse = TRUE,
-  comment = "#>",
-  eval = FALSE
+  comment = "#>"
 )
 ```
 
@@ -29,71 +28,58 @@ work.
 
 ## Current Production Path
 
-The strongest current workflow is a Gaussian mixed-effects model for nested
-educational, psychological, health, or organizational data. The app is
-especially well suited for:
+The strongest current workflow is a Gaussian mixed-effects model for nested or
+longitudinal educational, psychological, health, or organizational data. The app
+is especially well suited for:
 
 - two-level nested models, such as students within schools;
 - three-level nested models, such as students within schools within districts;
-- random-intercept and random-slope models;
+- longitudinal growth-curve models, such as waves nested within individuals;
+- per-grouping-factor random-intercept and random-slope models;
 - correlated or independent random-effects structures;
 - grand-mean and cluster-mean centering;
-- fixed interactions and cross-level interaction-style models;
-- APA-style tables, equations, Tau matrices, diagnostics, and reproducible
-  exports.
-
-The built-in HSB-style example is intentionally more complex than a minimal
-random-intercept model so users can see how centering, interactions, random
-slopes, and variance-covariance structures work together.
+- optional Satterthwaite or Kenward-Roger denominator degrees of freedom via
+  `lmerTest` and `pbkrtest`;
+- fixed interactions and cross-level interactions;
+- APA-style tables, Nakagawa $R^2$, random-intercept reliability, equations,
+  Tau matrices, diagnostics, and `.zip` reproducibility archives.
 
 ## Supported Scope Table
 
-The same scope table is available programmatically:
+The scope table is available programmatically and rendered directly below:
 
-```{r scope}
-mlmr::mlm_supported_models()
+```{r scope, eval = TRUE}
+knitr::kable(mlmr::mlm_supported_models())
 ```
 
-This table is useful for instructors, analysts, and beta testers because it
-separates software support from statistical responsibility. A model can be
-available in the interface and still require careful evaluation of assumptions,
-sample size, convergence, and interpretation.
+This table separates software support from statistical responsibility. A model
+can be available in the interface and still require careful evaluation of
+assumptions, cluster counts, convergence, and substantive interpretation.
 
 ## Advanced Workflows
 
-`mlmr` includes advanced pathways for GLMMs and flexible random-effect
-structures because real research often moves beyond strict nesting. These
-workflows are valuable, but they require more careful checking:
+`mlmr` includes advanced pathways for GLMMs and non-nested random-effect
+structures because applied research often moves beyond strict nesting:
 
-- binomial, Poisson, negative binomial, and Gamma GLMMs should be checked for
-  outcome coding, link function, overdispersion, and convergence;
+- binomial, Poisson, negative binomial, and Gamma GLMMs report exponentiated
+  coefficients (odds ratios or incidence rate ratios) and should be checked for
+  outcome coding, link scale, sparse cells, overdispersion, and convergence;
 - crossed random effects should be used only when the grouping variables truly
-  represent non-nested sources of variation;
-- longitudinal models can be represented through grouping variables and time
-  predictors, but users should evaluate residual patterns and time structures;
-- weighted multiple-membership models are not a current production feature.
-
-## What mlmr Does Not Replace
-
-`mlmr` does not replace statistical judgment. It helps users express and report
-models more clearly, but users remain responsible for:
-
-- deciding whether a mixed-effects model is appropriate for the design;
-- checking whether grouping factors and predictor levels are correctly declared;
-- choosing centering and contrast coding that match the research question;
-- evaluating convergence, singular fits, residual patterns, and influential
-  observations;
-- confirming that manuscript language matches the fitted model.
+  represent non-nested classifications;
+- longitudinal models support person-level random growth slopes, though closely
+  spaced waves may still require external residual autocorrelation checks;
+- weighted multiple-membership models remain outside the current `lme4`-backed
+  scope.
 
 ## Production Readiness Standard
 
 For a model to be treated as production analysis, users should be able to:
 
 1. reproduce the fitted model from the exported R code;
-2. explain the centering, interactions, and random-effects choices;
-3. inspect the fixed effects, variance components, ICCs, and Tau matrix;
+2. explain centering, interactions, degrees of freedom, and random-effects
+   choices;
+3. inspect fixed effects, variance components, ICCs, $R^2$, reliability, and
+   the Tau matrix;
 4. review diagnostics and convergence messages;
 5. export manuscript tables, equations, and software citations;
-6. save a Quarto or script-based record of the full workflow.
-
-That standard is the guiding target for `mlmr` development.
+6. archive a complete `.zip` publication bundle or Quarto report.
