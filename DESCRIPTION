@@ -11,10 +11,10 @@ Description: Provides a guided level-by-level 'Shiny' interface and reusable R
     moderation, optional Satterthwaite and Kenward-Roger denominator degrees of
     freedom via 'lmerTest' (Kuznetsova, Brockhoff, and Christensen, 2017,
     <doi:10.18637/jss.v082.i13>), Huber-White cluster-robust sandwich standard
-    errors, empirical Bayes random-coefficient reliabilities, variance-component
+    errors, empirical Bayes random-coefficient reliability, variance-component
     likelihood-ratio and homogeneity tests (Raudenbush and Bryk, 2002,
     ISBN:9780761919049), marginal and conditional R-squared (Nakagawa, Johnson,
-    and Schielzeth, 2017, <doi:10.1098/rsif.2017.0213>), live pre-fit and fitted
+    and Schielzeth, 2017, <doi:10.1098/rsif.2017.0213>), symbolic and fitted
     equations, APA-style tables, diagnostics, and reproducible publication
     archive bundles.
 License: MIT + file LICENSE

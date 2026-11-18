@@ -186,6 +186,11 @@ app_ui <- function() {
                 shiny::uiOutput("group_structure_note")
               ),
               bslib::card(bslib::card_header("Rows Per Group"), shiny::plotOutput("group_plot", height = "360px"))
+            ),
+            bslib::card(
+              bslib::card_header("Outcome Variation Across Clusters (Pre-Fit Distribution)"),
+              shiny::p(class = "equation-subnote", "Visualizing how your Dependent Variable varies across clusters (ordered by cluster mean or event proportion) builds intuition for the intraclass correlation (ICC) prior to estimation:"),
+              shiny::plotOutput("outcome_cluster_plot", height = "380px")
             )
           ),
           shiny::tabPanel(
@@ -370,6 +375,7 @@ app_ui <- function() {
           shiny::tabPanel(
             "Dashboard",
             shiny::br(),
+            shiny::uiOutput("results_kpi_tiles"),
             bslib::card(
               class = "dashboard-hero",
               bslib::card_header("Model Dashboard"),
@@ -448,13 +454,13 @@ app_ui <- function() {
             "Interpretation",
             shiny::br(),
             bslib::layout_columns(
-              col_widths = c(7, 5),
+              col_widths = c(6, 6),
               bslib::card(
                 bslib::card_header(
                   shiny::div(
-                    style = "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;",
-                    shiny::span("Model-Implied Simple Slopes & Cross-Level Moderation"),
-                    shiny::downloadButton("download_interaction_plot", "Download .png (300 DPI)", class = "btn-outline-primary btn-sm")
+                    class = "card-header-flex",
+                    shiny::span("Simple Slopes & Cross-Level Moderation"),
+                    shiny::downloadButton("download_interaction_plot", "PNG (300 DPI)", class = "btn-outline-primary btn-sm")
                   )
                 ),
                 bslib::layout_columns(
@@ -468,18 +474,19 @@ app_ui <- function() {
                     selected = "CR1"
                   )
                 ),
-                shiny::plotOutput("interaction_probe_plot", height = "370px")
+                shiny::plotOutput("interaction_probe_plot", height = "350px"),
+                shiny::div(class = "scroll-table", shiny::tableOutput("simple_slopes_table"))
               ),
               bslib::card(
                 bslib::card_header(
                   shiny::div(
-                    style = "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;",
-                    shiny::span("Fixed-Effects Forest Plot (Model vs. Robust CIs)"),
-                    shiny::downloadButton("download_coef_plot", "Download .png (300 DPI)", class = "btn-outline-primary btn-sm")
+                    class = "card-header-flex",
+                    shiny::span("Fixed-Effects Forest Plot"),
+                    shiny::downloadButton("download_coef_plot", "PNG (300 DPI)", class = "btn-outline-primary btn-sm")
                   )
                 ),
                 shiny::checkboxInput("coef_include_intercept", "Include model intercept", FALSE),
-                shiny::plotOutput("coef_forest_plot", height = "370px")
+                shiny::plotOutput("coef_forest_plot", height = "420px")
               )
             ),
             bslib::layout_columns(

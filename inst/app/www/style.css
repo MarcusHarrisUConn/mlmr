@@ -1009,3 +1009,33 @@ html.shiny-busy::before {
   border-color: #3d6375;
   color: #e4f0f5;
 }
+
+.card-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.card-header-flex .btn {
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.blueprint-tile.kpi-ok-tile {
+  border-left-color: #2f7d4a;
+}
+
+.blueprint-tile.kpi-warn-tile {
+  border-left-color: #c87d1c;
+}
+
+[data-bs-theme="dark"] .blueprint-tile.kpi-ok-tile {
+  border-left-color: #5cb87a;
+}
+
+[data-bs-theme="dark"] .blueprint-tile.kpi-warn-tile {
+  border-left-color: #e3a346;
+}

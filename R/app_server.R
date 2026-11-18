@@ -1233,6 +1233,14 @@ app_server <- function(input, output, session) {
       ggplot2::theme_minimal(base_size = 12)
   })
 
+  output$outcome_cluster_plot <- shiny::renderPlot({
+    dat <- data_reactive()
+    out_v <- active_outcome()
+    g <- first_or(active_groups())
+    shiny::req(out_v, g)
+    cluster_outcome_distribution_plot(dat, out_v, g)
+  })
+
   readiness_reactive <- shiny::reactive({
     tab <- model_readiness_table(data_reactive(), spec_reactive())
     bad_inter <- invalid_interaction_vars()
@@ -1629,6 +1637,64 @@ app_server <- function(input, output, session) {
     render_sync_banner_for("fit_from_results_banner", "refit_from_results_banner")
   })
 
+  output$results_kpi_tiles <- shiny::renderUI({
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    fit <- res$fit
+    n_obs <- stats::nobs(fit)
+    cl_info <- top_level_cluster_vector(fit)
+    J <- nlevels(cl_info$factor)
+    est_lbl <- if (is_gaussian_fit(fit)) (if (lme4::isREML(fit)) "REML" else "Full ML") else sprintf("%s (%s)", res$spec$distribution, res$spec$link)
+
+    r2 <- tryCatch(mlm_r2(res), error = function(e) NULL)
+    r2_val <- if (!is.null(r2) && nrow(r2) && is.finite(r2$R2_marginal[[1]])) {
+      sprintf("%.1f%% Marginal | %.1f%% Cond.", 100 * r2$R2_marginal[[1]], 100 * r2$R2_conditional[[1]])
+    } else {
+      "N/A"
+    }
+
+    icc_df <- icc_table(fit)
+    icc_val <- if (nrow(icc_df)) {
+      sprintf("ICC = %.3f (%s)", icc_df$icc[[1]], icc_df$group[[1]])
+    } else {
+      sprintf("Family: %s (%s)", res$spec$distribution, res$spec$link)
+    }
+
+    is_sing <- lme4::isSingular(fit, tol = 1e-4)
+    conv_msgs <- fit@optinfo$conv$lme4$messages
+    is_clean <- !is_sing && is.null(conv_msgs)
+    conv_val <- if (is_clean) "Converged (Clean)" else if (is_sing) "Singular Boundary Fit" else "Check Convergence"
+    conv_cls <- if (is_clean) "blueprint-tile kpi-ok-tile" else "blueprint-tile kpi-warn-tile"
+
+    shiny::div(
+      class = "blueprint-grid",
+      shiny::div(
+        class = "blueprint-tile cluster-tile",
+        shiny::div(class = "blueprint-label", "Analytic Sample & Clusters"),
+        shiny::div(class = "blueprint-value", sprintf("N = %s | J = %s", n_obs, J)),
+        shiny::div(class = "blueprint-sub", sprintf("Cluster: %s | %s", cl_info$name, est_lbl))
+      ),
+      shiny::div(
+        class = "blueprint-tile iv-tile",
+        shiny::div(class = "blueprint-label", "Variance Explained (Nakagawa R2)"),
+        shiny::div(class = "blueprint-value", r2_val),
+        shiny::div(class = "blueprint-sub", "Fixed effects vs. fixed + random effects")
+      ),
+      shiny::div(
+        class = "blueprint-tile dv-tile",
+        shiny::div(class = "blueprint-label", "Clustering / Outcome Scale"),
+        shiny::div(class = "blueprint-value", icc_val),
+        shiny::div(class = "blueprint-sub", sprintf("Outcome: %s", res$spec$outcome))
+      ),
+      shiny::div(
+        class = conv_cls,
+        shiny::div(class = "blueprint-label", "Convergence & Fit Criteria"),
+        shiny::div(class = "blueprint-value", conv_val),
+        shiny::div(class = "blueprint-sub", sprintf("AIC = %.1f | BIC = %.1f", stats::AIC(fit), stats::BIC(fit)))
+      )
+    )
+  })
+
   output$report_sync_banner <- shiny::renderUI({
     render_sync_banner_for("fit_from_report_banner", "refit_from_report_banner")
   })
@@ -1680,6 +1746,17 @@ app_server <- function(input, output, session) {
   output$interaction_probe_plot <- shiny::renderPlot({
     interaction_plot_reactive()
   })
+
+  output$simple_slopes_table <- shiny::renderTable({
+    res <- active_result()
+    shiny::req(res)
+    mlm_simple_slopes(
+      res,
+      focal = input$focal_plot_var,
+      moderator = input$mod_plot_var,
+      vcov_type = input$interaction_vcov_type %||% "CR1"
+    )
+  }, striped = TRUE, bordered = TRUE)
 
   output$coef_forest_plot <- shiny::renderPlot({
     coef_plot_reactive()

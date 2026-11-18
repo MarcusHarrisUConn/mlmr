@@ -81,6 +81,7 @@ reference:
   - mlm_compare_table
   - mlm_coef_plot
   - mlm_interaction_plot
+  - mlm_simple_slopes
   - mlm_equations
   - mlm_latex_equations
   - mlm_publication_bundle

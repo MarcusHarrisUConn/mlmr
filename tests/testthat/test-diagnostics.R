@@ -71,6 +71,13 @@ test_that("Robust SEs, multiparameter Wald tests, variance LRTs, homogeneity H, 
   expect_s3_class(p_int_cat, "ggplot")
   expect_s3_class(p_int_num, "ggplot")
 
+  ss_cat <- mlm_simple_slopes(res, focal = "ses", moderator = "sector", vcov_type = "model")
+  fe <- lme4::fixef(res$fit)
+  expect_equal(ss_cat$Slope[[1]], round(unname(fe[["ses_CWC"]]), 4), tolerance = 1e-4)
+  expect_equal(ss_cat$Slope[[2]], round(unname(fe[["ses_CWC"]] + fe[["ses_CWC:sectorPublic"]]), 4), tolerance = 1e-4)
+  ss_num <- mlm_simple_slopes(res, focal = "ses", moderator = "meanses", vcov_type = "CR1")
+  expect_identical(nrow(ss_num), 3L)
+
   m_null <- quiet_fit(mlm_spec("mathscore", grouping = list(schoolid = "schoolid"), random = school_random(), data = hsb), REML = FALSE)
   cmp <- mlm_compare_table(list("Model 1 (Null)" = m_null, "Model 2 (Full)" = res))
   expect_true(all(c("Section", "Term", "Model 1 (Null)", "Model 2 (Full)") %in% names(cmp)))
