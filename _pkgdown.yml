@@ -75,9 +75,12 @@ reference:
   - mlm_feature_matrix
   - mlm_validation_benchmarks
   - mlm_validation_report
-- title: Report models
+- title: Report and visualize models
   contents:
   - mlm_apa_tables
+  - mlm_compare_table
+  - mlm_coef_plot
+  - mlm_interaction_plot
   - mlm_equations
   - mlm_latex_equations
   - mlm_publication_bundle

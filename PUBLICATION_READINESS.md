@@ -27,9 +27,10 @@ release.
    - Evidence: constructor and example-data tests cover invalid inputs.
 
 5. **App/backend consistency**
-   - Keep reusable backend code in `R/` synchronized with the installed Shiny app
-     copy in `inst/app/R/`.
-   - Evidence: tests compare the shipped app backend to the package backend.
+   - Keep all package and Shiny code unified in single-source `R/` modules with
+     thin launchers in `app.R` and `inst/app/app.R`.
+   - Evidence: `dev/check-publication-readiness.R` and `tests/testthat/test-app.R`
+     verify single-source architecture with zero duplicated backend files.
 
 6. **Beta feedback workflow**
    - Make it easy for testers to report model structure, exported-code checks,

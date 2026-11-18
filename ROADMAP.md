@@ -20,6 +20,9 @@ refactoring, and CRAN/software-article validation milestones.
       (`mlm_wald_test()`), variance LRTs (`mlm_variance_tests()`), Level-1
       variance homogeneity (`mlm_homogeneity_test()`), and residual exports
       (`mlm_residual_files()`).
+- [x] Interactive simple-slopes / cross-level moderation plots
+      (`mlm_interaction_plot()`), fixed-effects forest plots (`mlm_coef_plot()`),
+      and side-by-side multi-model APA comparison tables (`mlm_compare_table()`).
 - [x] Longitudinal growth-curve dataset (`example_longitudinal()`) and workflow
       template.
 - [x] Row/column-labeled Tau matrices, fixed-vs-random Coefficient Key roles,
@@ -32,10 +35,9 @@ refactoring, and CRAN/software-article validation milestones.
 
 ## Post-0.1.0 Enhancements (v0.2.0+)
 
-- Simple-slopes probing and marginal-effects interaction plots.
 - Parametric and cluster bootstrap confidence intervals for variance components,
   ICCs, and $R^2$.
 - Cluster-level Cook's distance and leverage diagnostics.
-- Side-by-side multi-model APA comparison tables (Model 1 / Model 2 / Model 3
+- Native Rubin's rules GUI pooling across multiply imputed datasets.
   columns) and native `.docx` export.
 - GUI-integrated Rubin's rules pooling for multiply imputed multilevel datasets.

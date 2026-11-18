@@ -22,19 +22,25 @@ mlmr::run_mlmr()
 
 ## Five-Minute Demo
 
-1. Launch the app.
-2. On **Data**, keep the built-in example data selected.
-3. Skim **Data > Structure** and **Data > Roles** to see the grouping factors
-   and variable roles.
-4. Open **Model** and review the preset outcome, predictors, centering choices,
-   interactions, and random effects.
-5. Click **Fit Example Model** from **Data > Overview**, or open **Estimate**
-   and click **Fit Example Model**.
-6. Open **Results > Tables** and inspect the APA-style tables.
-7. Open **Results > Equations** and inspect the level-by-level equations,
-   combined equation, and Tau matrix.
-8. Open **Results > Diagnostics** and review model diagnostics.
-9. Open **Report & Code** and inspect the reproducible R code and LaTeX export.
+1. Launch the app (`mlmr::run_mlmr()`).
+2. On **Data > Overview**, review the **Active Multilevel Model Blueprint**
+   showing the Dependent Variable (`mathscore`), Multilevel Clustering Structure
+   (`schoolid`), Independent Variables, and live pre-fit symbolic equations.
+3. Skim **Data > Structure** and **Data > Roles** to inspect cluster sizes and
+   empirical variable variation.
+4. Open **Model** to customize predictors, inline centering (`CWC` / `GMC`),
+   random slopes (`+ u`), and cross-level slope moderators while watching the
+   symbolic equations update live.
+5. Click **Fit Current Model** from **Data > Overview** (or **Estimate**).
+6. Open **Results > Tables** to compare Model-Based and Cluster-Robust (`CR1`)
+   APA tables, multiparameter Wald tests, variance LRTs, ICCs, $R^2$, and
+   empirical Bayes reliabilities.
+7. Open **Results > Equations**, **Results > Interpretation** (interactive
+   simple-slopes and forest plots), **Results > Diagnostics**, and **Results >
+   Compare** (one-click 3-step `Null -> Level 1 -> Full` side-by-side APA
+   comparison table).
+8. Open **Report & Code** to download the Quarto `.qmd` report, standalone `.R`
+   script, raw LaTeX, or `.zip` publication bundle.
 
 ## Visual Walkthrough
 

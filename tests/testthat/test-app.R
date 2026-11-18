@@ -248,7 +248,20 @@ test_that("design_mode, inline random-slope toggles, cross-level moderators, and
     session$setInputs(fit_model = 1)
     session$flushReact()
     expect_s3_class(active_result(), "mlm_result")
+    expect_false(is_spec_out_of_sync())
     expect_no_error(output$pop_average_card_ui)
     expect_no_error(output$wald_test_table)
+
+    # Modify predictors after fit -> out-of-sync banner flags dirty state
+    session$setInputs(level1_terms = c("ses", "homework"))
+    session$flushReact()
+    expect_true(is_spec_out_of_sync())
+
+    # Trigger 3-step sequential multilevel comparison builder
+    session$setInputs(run_sequential_build = 1)
+    session$flushReact()
+    expect_gte(length(model_history()), 2L)
+    expect_true(lrt_comparison()$ok)
+    expect_no_error(output$side_by_side_compare_html)
   })))
 })

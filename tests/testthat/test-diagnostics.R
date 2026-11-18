@@ -64,6 +64,19 @@ test_that("Robust SEs, multiparameter Wald tests, variance LRTs, homogeneity H, 
   expect_identical(nrow(rf$level1), stats::nobs(res$fit))
   expect_true(all(c("EB_Estimate", "Posterior_SE") %in% names(rf$cluster)))
 
+  p_coef <- mlm_coef_plot(res)
+  p_int_cat <- mlm_interaction_plot(res, focal = "ses", moderator = "sector")
+  p_int_num <- mlm_interaction_plot(res, focal = "ses", moderator = "meanses")
+  expect_s3_class(p_coef, "ggplot")
+  expect_s3_class(p_int_cat, "ggplot")
+  expect_s3_class(p_int_num, "ggplot")
+
+  m_null <- quiet_fit(mlm_spec("mathscore", grouping = list(schoolid = "schoolid"), random = school_random(), data = hsb), REML = FALSE)
+  cmp <- mlm_compare_table(list("Model 1 (Null)" = m_null, "Model 2 (Full)" = res))
+  expect_true(all(c("Section", "Term", "Model 1 (Null)", "Model 2 (Full)") %in% names(cmp)))
+  expect_true(any(cmp$Section == "Variance Components"))
+  expect_true(any(cmp$Term == "Deviance (-2LL)"))
+
   vt <- mlm_variance_tests(res)
   expect_identical(vt$Term, c("(Intercept)", "ses_CWC"))
   expect_true(all(vt$Chisq >= 0))

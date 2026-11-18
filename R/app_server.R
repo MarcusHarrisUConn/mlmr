@@ -1586,6 +1586,105 @@ app_server <- function(input, output, session) {
     shiny::tags$ul(lapply(interpretation_points(res), shiny::tags$li))
   })
 
+  # Sync / empty-state banners across Results and Report & Code
+  is_spec_out_of_sync <- shiny::reactive({
+    res <- active_result()
+    if (is.null(res)) return(FALSE)
+    cur_spec <- tryCatch(spec_reactive(), error = function(e) NULL)
+    if (is.null(cur_spec)) return(FALSE)
+    cur_f <- paste(deparse(build_formula(cur_spec), width.cutoff = 500), collapse = " ")
+    fit_f <- paste(deparse(res$formula, width.cutoff = 500), collapse = " ")
+    !identical(cur_f, fit_f) ||
+      !identical(cur_spec$distribution, res$spec$distribution) ||
+      !identical(cur_spec$link, res$spec$link)
+  })
+
+  render_sync_banner_for <- function(btn_id_empty, btn_id_dirty) {
+    res <- active_result()
+    if (is.null(res)) {
+      return(shiny::div(
+        class = "sync-banner empty",
+        shiny::span(
+          shiny::strong("No model estimated yet. "),
+          "Click Fit Current Model to estimate your active specification and populate all tables, equations, plots, and exports."
+        ),
+        shiny::actionButton(btn_id_empty, "Fit Current Model Now", class = "btn-primary btn-sm")
+      ))
+    }
+    if (isTRUE(is_spec_out_of_sync())) {
+      cur_f <- tryCatch(paste(deparse(build_formula(spec_reactive()), width.cutoff = 500), collapse = " "), error = function(e) "")
+      return(shiny::div(
+        class = "sync-banner dirty",
+        shiny::span(
+          shiny::strong("Specification changed since last fit: "),
+          sprintf("Current builder formula (%s) differs from the fitted results shown below.", cur_f)
+        ),
+        shiny::actionButton(btn_id_dirty, "Re-Estimate Updated Model", class = "btn-primary btn-sm")
+      ))
+    }
+    NULL
+  }
+
+  output$results_sync_banner <- shiny::renderUI({
+    render_sync_banner_for("fit_from_results_banner", "refit_from_results_banner")
+  })
+
+  output$report_sync_banner <- shiny::renderUI({
+    render_sync_banner_for("fit_from_report_banner", "refit_from_report_banner")
+  })
+
+  shiny::observeEvent(input$fit_from_results_banner, run_fit(input$optimizer %||% "bobyqa"))
+  shiny::observeEvent(input$refit_from_results_banner, run_fit(input$optimizer %||% "bobyqa"))
+  shiny::observeEvent(input$fit_from_report_banner, run_fit(input$optimizer %||% "bobyqa"))
+  shiny::observeEvent(input$refit_from_report_banner, run_fit(input$optimizer %||% "bobyqa"))
+
+  # Simple-slopes / interaction & forest plot outputs on Results > Interpretation
+  output$focal_plot_var_ui <- shiny::renderUI({
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    cands <- interaction_plot_candidates(res)
+    if (!length(cands)) return(shiny::p(class = "tau-sub-label", "Intercept-only model"))
+    defs <- default_interaction_pair(res)
+    shiny::selectInput("focal_plot_var", "Focal predictor (X)", choices = cands, selected = defs$focal %||% cands[[1]])
+  })
+
+  output$mod_plot_var_ui <- shiny::renderUI({
+    res <- active_result()
+    if (is.null(res)) return(NULL)
+    cands <- interaction_plot_candidates(res)
+    if (!length(cands)) return(NULL)
+    defs <- default_interaction_pair(res)
+    focal_cur <- input$focal_plot_var %||% defs$focal %||% cands[[1]]
+    mod_choices <- c("None (marginal effect)" = "none", stats::setNames(setdiff(cands, focal_cur), setdiff(cands, focal_cur)))
+    sel_mod <- if (!is.null(defs$moderator) && defs$moderator %in% mod_choices) defs$moderator else "none"
+    shiny::selectInput("mod_plot_var", "Moderator (lines / +/-1 SD)", choices = mod_choices, selected = sel_mod)
+  })
+
+  interaction_plot_reactive <- shiny::reactive({
+    res <- active_result()
+    shiny::req(res)
+    mlm_interaction_plot(
+      res,
+      focal = input$focal_plot_var,
+      moderator = input$mod_plot_var,
+      vcov_type = input$interaction_vcov_type %||% "CR1"
+    )
+  })
+
+  coef_plot_reactive <- shiny::reactive({
+    res <- active_result()
+    shiny::req(res)
+    mlm_coef_plot(res, include_intercept = isTRUE(input$coef_include_intercept))
+  })
+
+  output$interaction_probe_plot <- shiny::renderPlot({
+    interaction_plot_reactive()
+  })
+
+  output$coef_forest_plot <- shiny::renderPlot({
+    coef_plot_reactive()
+  })
+
   output$assumptions_panel <- shiny::renderUI({
     res <- active_result()
     if (is.null(res)) return(shiny::p("Fit a model to generate assumption checks."))
@@ -1841,37 +1940,31 @@ app_server <- function(input, output, session) {
     diagnostic_frame(res)
   })
 
-  output$residual_fitted_plot <- shiny::renderPlot({
-    shiny::withProgress(message = "Drawing residual diagnostics", value = 0.4, {
-      res <- active_result()
-      shiny::req(res)
-      df <- diagnostic_df()
+  build_diag_plot_obj <- function(kind) {
+    res <- active_result()
+    shiny::req(res)
+    df <- diagnostic_df()
+    if (identical(kind, "resid_fitted")) {
       y_lab <- if (is_gaussian_fit(res$fit)) "Residuals" else "Pearson residuals"
-      ggplot2::ggplot(df, ggplot2::aes(x = .data[["fitted"]], y = .data[["residual"]])) +
-        ggplot2::geom_hline(yintercept = 0, color = "#8a969c") +
-        ggplot2::geom_point(alpha = 0.62, color = "#245a73") +
-        ggplot2::geom_smooth(method = "loess", formula = y ~ x, se = FALSE, color = "#8b3f2f", linewidth = 0.8) +
-        ggplot2::labs(x = "Fitted values (response scale)", y = y_lab) +
-        ggplot2::theme_minimal(base_size = 12)
-    })
-  })
-
-  output$qq_plot <- shiny::renderPlot({
-    shiny::withProgress(message = "Drawing QQ plot", value = 0.4, {
-      df <- diagnostic_df()
-      ggplot2::ggplot(df, ggplot2::aes(sample = .data[["residual"]])) +
-        ggplot2::stat_qq(color = "#245a73", alpha = 0.7) +
-        ggplot2::stat_qq_line(color = "#8b3f2f", linewidth = 0.8) +
-        ggplot2::labs(x = "Theoretical quantiles", y = "Sample residual quantiles") +
-        ggplot2::theme_minimal(base_size = 12)
-    })
-  })
-
-  output$observed_fitted_plot <- shiny::renderPlot({
-    shiny::withProgress(message = "Drawing observed versus fitted plot", value = 0.4, {
-      res <- active_result()
-      shiny::req(res)
-      df <- diagnostic_df()
+      return(
+        ggplot2::ggplot(df, ggplot2::aes(x = .data[["fitted"]], y = .data[["residual"]])) +
+          ggplot2::geom_hline(yintercept = 0, color = "#8a969c") +
+          ggplot2::geom_point(alpha = 0.62, color = "#245a73") +
+          ggplot2::geom_smooth(method = "loess", formula = y ~ x, se = FALSE, color = "#8b3f2f", linewidth = 0.8) +
+          ggplot2::labs(x = "Fitted values (response scale)", y = y_lab) +
+          ggplot2::theme_minimal(base_size = 12)
+      )
+    }
+    if (identical(kind, "qq")) {
+      return(
+        ggplot2::ggplot(df, ggplot2::aes(sample = .data[["residual"]])) +
+          ggplot2::stat_qq(color = "#245a73", alpha = 0.7) +
+          ggplot2::stat_qq_line(color = "#8b3f2f", linewidth = 0.8) +
+          ggplot2::labs(x = "Theoretical quantiles", y = "Sample residual quantiles") +
+          ggplot2::theme_minimal(base_size = 12)
+      )
+    }
+    if (identical(kind, "obs_fitted")) {
       rng <- range(c(df$observed, df$fitted), na.rm = TRUE)
       y_lab <- if (identical(res$spec$distribution, "binomial")) "Observed outcome (0 / 1)" else "Observed values"
       p <- ggplot2::ggplot(df, ggplot2::aes(x = .data[["fitted"]], y = .data[["observed"]])) +
@@ -1882,16 +1975,10 @@ app_server <- function(input, output, session) {
       if (all(is.finite(rng)) && diff(rng) > 0) {
         p <- p + ggplot2::coord_equal(xlim = rng, ylim = rng)
       }
-      p
-    })
-  })
-
-  output$random_effects_interval_plot <- shiny::renderPlot({
-    shiny::withProgress(message = "Estimating random-effect intervals", value = 0.25, {
-      res <- active_result()
-      shiny::req(res)
+      return(p)
+    }
+    if (identical(kind, "caterpillar")) {
       re <- as.data.frame(lme4::ranef(res$fit, condVar = TRUE))
-      shiny::incProgress(0.55)
       shiny::req(nrow(re) > 0)
       grpvar <- if (!is.null(input$ranef_group) && input$ranef_group %in% re$grpvar) {
         input$ranef_group
@@ -1918,44 +2005,155 @@ app_server <- function(input, output, session) {
       plot_df$grp_label <- factor(unique_labels, levels = unique_labels)
       plot_df$low <- plot_df$condval - 1.96 * plot_df$condsd
       plot_df$high <- plot_df$condval + 1.96 * plot_df$condsd
-      ggplot2::ggplot(plot_df, ggplot2::aes(x = .data[["condval"]], y = .data[["grp_label"]])) +
-        ggplot2::geom_vline(xintercept = 0, color = "#8a969c") +
-        ggplot2::geom_segment(ggplot2::aes(x = .data[["low"]], xend = .data[["high"]], y = .data[["grp_label"]], yend = .data[["grp_label"]]), color = "#6b7a83") +
-        ggplot2::geom_point(color = "#245a73", size = 2) +
-        ggplot2::labs(x = sprintf("Empirical Bayes estimate (%s: %s)", grpvar, term), y = NULL) +
-        ggplot2::theme_minimal(base_size = 12)
-    })
+      return(
+        ggplot2::ggplot(plot_df, ggplot2::aes(x = .data[["condval"]], y = .data[["grp_label"]])) +
+          ggplot2::geom_vline(xintercept = 0, color = "#8a969c") +
+          ggplot2::geom_segment(ggplot2::aes(x = .data[["low"]], xend = .data[["high"]], y = .data[["grp_label"]], yend = .data[["grp_label"]]), color = "#6b7a83") +
+          ggplot2::geom_point(color = "#245a73", size = 2) +
+          ggplot2::labs(x = sprintf("Empirical Bayes estimate (%s: %s)", grpvar, term), y = NULL) +
+          ggplot2::theme_minimal(base_size = 12)
+      )
+    }
+    num_choices <- intersect(names(df), numeric_vars(res$data))
+    x_var <- if (!is.null(input$diagnostic_x) && input$diagnostic_x %in% names(df)) {
+      input$diagnostic_x
+    } else {
+      first_or(intersect(c("ses_CWC", "wave", "ses"), num_choices), first_or(num_choices))
+    }
+    groups <- unlist(res$spec$grouping, use.names = FALSE)
+    g_var <- if (!is.null(input$diagnostic_group) && input$diagnostic_group %in% names(df)) {
+      input$diagnostic_group
+    } else {
+      first_or(intersect(groups, names(df)))
+    }
+    shiny::req(x_var, g_var, x_var %in% names(df), g_var %in% names(df))
+    group_counts <- sort(table(df[[g_var]]), decreasing = TRUE)
+    keep <- names(group_counts)[seq_len(min(8, length(group_counts)))]
+    plot_df <- df[as.character(df[[g_var]]) %in% keep, , drop = FALSE]
+    plot_df[[g_var]] <- factor(as.character(plot_df[[g_var]]), levels = keep)
+    plot_df <- plot_df[order(plot_df[[g_var]], plot_df[[x_var]]), , drop = FALSE]
+    ggplot2::ggplot(plot_df, ggplot2::aes(x = .data[[x_var]], y = .data[["observed"]], color = .data[[g_var]])) +
+      ggplot2::geom_point(alpha = 0.45) +
+      ggplot2::geom_line(ggplot2::aes(y = .data[["fitted"]], group = .data[[g_var]]), linewidth = 0.9) +
+      ggplot2::labs(x = x_var, y = res$spec$outcome, color = g_var) +
+      ggplot2::theme_minimal(base_size = 12)
+  }
+
+  output$residual_fitted_plot <- shiny::renderPlot({
+    shiny::withProgress(message = "Drawing residual diagnostics", value = 0.4, build_diag_plot_obj("resid_fitted"))
+  })
+
+  output$qq_plot <- shiny::renderPlot({
+    shiny::withProgress(message = "Drawing QQ plot", value = 0.4, build_diag_plot_obj("qq"))
+  })
+
+  output$observed_fitted_plot <- shiny::renderPlot({
+    shiny::withProgress(message = "Drawing observed versus fitted plot", value = 0.4, build_diag_plot_obj("obs_fitted"))
+  })
+
+  output$random_effects_interval_plot <- shiny::renderPlot({
+    shiny::withProgress(message = "Estimating random-effect intervals", value = 0.25, build_diag_plot_obj("caterpillar"))
   })
 
   output$model_lines_plot <- shiny::renderPlot({
-    shiny::withProgress(message = "Preparing group-specific model lines", value = 0.35, {
-      res <- active_result()
-      shiny::req(res)
-      df <- diagnostic_df()
-      num_choices <- intersect(names(df), numeric_vars(res$data))
-      x_var <- if (!is.null(input$diagnostic_x) && input$diagnostic_x %in% names(df)) {
-        input$diagnostic_x
-      } else {
-        first_or(intersect(c("ses_CWC", "wave", "ses"), num_choices), first_or(num_choices))
-      }
-      groups <- unlist(res$spec$grouping, use.names = FALSE)
-      g_var <- if (!is.null(input$diagnostic_group) && input$diagnostic_group %in% names(df)) {
-        input$diagnostic_group
-      } else {
-        first_or(intersect(groups, names(df)))
-      }
-      shiny::req(x_var, g_var, x_var %in% names(df), g_var %in% names(df))
-      group_counts <- sort(table(df[[g_var]]), decreasing = TRUE)
-      keep <- names(group_counts)[seq_len(min(8, length(group_counts)))]
-      plot_df <- df[as.character(df[[g_var]]) %in% keep, , drop = FALSE]
-      plot_df[[g_var]] <- factor(as.character(plot_df[[g_var]]), levels = keep)
-      plot_df <- plot_df[order(plot_df[[g_var]], plot_df[[x_var]]), , drop = FALSE]
-      ggplot2::ggplot(plot_df, ggplot2::aes(x = .data[[x_var]], y = .data[["observed"]], color = .data[[g_var]])) +
-        ggplot2::geom_point(alpha = 0.45) +
-        ggplot2::geom_line(ggplot2::aes(y = .data[["fitted"]], group = .data[[g_var]]), linewidth = 0.9) +
-        ggplot2::labs(x = x_var, y = res$spec$outcome, color = g_var) +
-        ggplot2::theme_minimal(base_size = 12)
+    shiny::withProgress(message = "Preparing group-specific model lines", value = 0.35, build_diag_plot_obj("cluster_lines"))
+  })
+
+  # One-click 3-step sequential multilevel model builder (Null -> Level-1 -> Full)
+  shiny::observeEvent(input$run_sequential_build, {
+    shiny::withProgress(message = "Building 3-step sequential multilevel comparison...", value = 0.2, {
+      tryCatch(
+        {
+          full_spec <- spec_reactive()
+          dat <- data_reactive()
+          keep_rows <- analysis_rows(dat, model_variables(full_spec))
+          dat_seq <- dat[keep_rows, , drop = FALSE]
+          opt <- input$optimizer %||% "bobyqa"
+          mf <- input$maxfun %||% 30000
+          ddf <- active_df_method()
+
+          # Step 1: Unconditional Null Model (random intercepts only)
+          null_random <- lapply(full_spec$random, function(r) list(intercept = TRUE, slopes = character(), correlation = TRUE))
+          spec_null <- mlm_spec(
+            outcome = full_spec$outcome,
+            distribution = full_spec$distribution,
+            link = full_spec$link,
+            fixed = list(),
+            grouping = full_spec$grouping,
+            nesting = full_spec$nesting,
+            structure = full_spec$structure,
+            random = null_random,
+            interactions = list(),
+            data = dat_seq
+          )
+          m_null <- suppressWarnings(mlm_fit(spec_null, REML = FALSE, optimizer = opt, maxfun = mf, df_method = ddf))
+          shiny::incProgress(0.3)
+
+          # Step 2: Level-1 Predictors + Random Slopes (within-level interactions only)
+          l1_names <- intersect(full_spec$predictor_levels$`Level 1` %||% character(), names(full_spec$fixed))
+          l1_fixed <- full_spec$fixed[l1_names]
+          l1_random <- lapply(full_spec$random, function(r) {
+            list(intercept = isTRUE(r$intercept), slopes = intersect(r$slopes %||% character(), l1_names), correlation = isTRUE(r$correlation))
+          })
+          l1_inter <- Filter(function(p) all(p %in% l1_names), full_spec$interactions)
+          spec_l1 <- mlm_spec(
+            outcome = full_spec$outcome,
+            distribution = full_spec$distribution,
+            link = full_spec$link,
+            fixed = l1_fixed,
+            grouping = full_spec$grouping,
+            nesting = full_spec$nesting,
+            structure = full_spec$structure,
+            random = l1_random,
+            interactions = l1_inter,
+            predictor_levels = list(`Level 1` = l1_names),
+            data = dat_seq
+          )
+          m_l1 <- if (length(l1_names)) {
+            suppressWarnings(mlm_fit(spec_l1, REML = FALSE, optimizer = opt, maxfun = mf, df_method = ddf))
+          } else {
+            NULL
+          }
+          shiny::incProgress(0.3)
+
+          # Step 3: Full Current Specification on identical complete-case analytic sample
+          spec_full_seq <- full_spec
+          spec_full_seq$data <- dat_seq
+          m_full <- suppressWarnings(mlm_fit(spec_full_seq, REML = FALSE, optimizer = opt, maxfun = mf, df_method = ddf))
+
+          new_hist <- list()
+          new_hist[["Model 1 (Null)"]] <- list(result = m_null, optimizer = opt, REML = FALSE, maxfun = mf)
+          if (!is.null(m_l1) && !identical(paste(deparse(m_l1$formula), collapse = " "), paste(deparse(m_full$formula), collapse = " "))) {
+            new_hist[["Model 2 (Level 1)"]] <- list(result = m_l1, optimizer = opt, REML = FALSE, maxfun = mf)
+            new_hist[["Model 3 (Full)"]] <- list(result = m_full, optimizer = opt, REML = FALSE, maxfun = mf)
+          } else {
+            new_hist[["Model 2 (Full)"]] <- list(result = m_full, optimizer = opt, REML = FALSE, maxfun = mf)
+          }
+          model_history(new_hist)
+          if (is.null(active_result())) {
+            fit_state(list(result = m_full, error = NULL, optimizer = opt))
+          }
+          shiny::showNotification(
+            sprintf("Estimated %d-step sequential multilevel comparison (Full ML, N = %d complete cases).", length(new_hist), nrow(dat_seq)),
+            type = "message"
+          )
+        },
+        error = function(e) {
+          shiny::showNotification(sprintf("Sequential build failed: %s", conditionMessage(e)), type = "error")
+        }
+      )
     })
+  })
+
+  compare_models_list_reactive <- shiny::reactive({
+    hist <- model_history()
+    if (!length(hist)) return(list())
+    lapply(hist, function(x) x$result)
+  })
+
+  output$side_by_side_compare_html <- shiny::renderUI({
+    mods <- compare_models_list_reactive()
+    shiny::HTML(apa_compare_models_html(mods))
   })
 
   output$model_compare_table <- shiny::renderTable({
@@ -2151,6 +2349,58 @@ app_server <- function(input, output, session) {
       res <- active_result()
       df <- if (is.null(res)) data.frame(Note = "Fit a model before exporting residuals.") else mlm_residual_files(res)$cluster
       utils::write.csv(df, file, row.names = FALSE)
+    }
+  )
+
+  save_ggplot_png <- function(plot_obj, file, width = 7.5, height = 5.0) {
+    ggplot2::ggsave(filename = file, plot = plot_obj, width = width, height = height, dpi = 300, bg = "white")
+  }
+
+  placeholder_png_plot <- function() {
+    ggplot2::ggplot() +
+      ggplot2::annotate("text", x = 0, y = 0, label = "Fit a model in mlmr before exporting figures.") +
+      ggplot2::theme_void()
+  }
+
+  output$download_interaction_plot <- shiny::downloadHandler(
+    filename = function() "mlmr_simple_slopes_plot.png",
+    content = function(file) {
+      p <- if (is.null(active_result())) placeholder_png_plot() else interaction_plot_reactive()
+      save_ggplot_png(p, file, width = 7.6, height = 5.0)
+    }
+  )
+
+  output$download_coef_plot <- shiny::downloadHandler(
+    filename = function() "mlmr_fixed_effects_forest_plot.png",
+    content = function(file) {
+      p <- if (is.null(active_result())) placeholder_png_plot() else coef_plot_reactive()
+      save_ggplot_png(p, file, width = 7.2, height = 5.0)
+    }
+  )
+
+  output$download_diag_plot <- shiny::downloadHandler(
+    filename = function() sprintf("mlmr_%s.png", input$diag_plot_export_choice %||% "diagnostic_plot"),
+    content = function(file) {
+      kind <- input$diag_plot_export_choice %||% "resid_fitted"
+      p <- if (is.null(active_result())) placeholder_png_plot() else build_diag_plot_obj(kind)
+      save_ggplot_png(p, file, width = 7.5, height = 5.2)
+    }
+  )
+
+  output$download_compare_html <- shiny::downloadHandler(
+    filename = function() "mlmr_multimodel_comparison.html",
+    content = function(file) {
+      mods <- compare_models_list_reactive()
+      body_html <- apa_compare_models_html(mods)
+      doc <- paste(
+        "<!doctype html><html><head><meta charset='utf-8'><title>mlmr Multi-Model Comparison</title>",
+        "<style>body{font-family:'Times New Roman',Times,serif;margin:32px;color:#111;}table{border-collapse:collapse;width:100%;margin-top:8px;}th,td{padding:5px 8px;text-align:left;}thead tr{border-top:2px solid #111;border-bottom:1px solid #111;}tbody tr:last-child{border-bottom:2px solid #111;}.apa-note{font-size:0.92rem;margin-top:8px;}</style>",
+        "</head><body>",
+        body_html,
+        "</body></html>",
+        sep = "\n"
+      )
+      writeLines(doc, file, useBytes = TRUE)
     }
   )
 }

@@ -364,6 +364,7 @@ app_ui <- function() {
       "Results",
       shiny::div(
         class = "results-page",
+        shiny::uiOutput("results_sync_banner"),
         shiny::tabsetPanel(
           id = "results_section",
           shiny::tabPanel(
@@ -447,6 +448,41 @@ app_ui <- function() {
             "Interpretation",
             shiny::br(),
             bslib::layout_columns(
+              col_widths = c(7, 5),
+              bslib::card(
+                bslib::card_header(
+                  shiny::div(
+                    style = "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;",
+                    shiny::span("Model-Implied Simple Slopes & Cross-Level Moderation"),
+                    shiny::downloadButton("download_interaction_plot", "Download .png (300 DPI)", class = "btn-outline-primary btn-sm")
+                  )
+                ),
+                bslib::layout_columns(
+                  col_widths = c(4, 4, 4),
+                  shiny::uiOutput("focal_plot_var_ui"),
+                  shiny::uiOutput("mod_plot_var_ui"),
+                  shiny::selectInput(
+                    "interaction_vcov_type",
+                    "95% CI Ribbon",
+                    choices = c("Cluster-robust (CR1)" = "CR1", "Model-based" = "model"),
+                    selected = "CR1"
+                  )
+                ),
+                shiny::plotOutput("interaction_probe_plot", height = "370px")
+              ),
+              bslib::card(
+                bslib::card_header(
+                  shiny::div(
+                    style = "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;",
+                    shiny::span("Fixed-Effects Forest Plot (Model vs. Robust CIs)"),
+                    shiny::downloadButton("download_coef_plot", "Download .png (300 DPI)", class = "btn-outline-primary btn-sm")
+                  )
+                ),
+                shiny::checkboxInput("coef_include_intercept", "Include model intercept", FALSE),
+                shiny::plotOutput("coef_forest_plot", height = "370px")
+              )
+            ),
+            bslib::layout_columns(
               col_widths = c(6, 6),
               bslib::card(bslib::card_header("Model Interpretation"), shiny::uiOutput("interpretation_panel")),
               bslib::card(bslib::card_header("Assumptions and Checks"), shiny::uiOutput("assumptions_panel"))
@@ -462,6 +498,21 @@ app_ui <- function() {
                 shiny::hr(),
                 shiny::uiOutput("ranef_group_selector"),
                 shiny::uiOutput("ranef_term_selector"),
+                shiny::hr(),
+                shiny::tags$strong(style = "font-size:0.86rem;", "Export Diagnostic Figure"),
+                shiny::selectInput(
+                  "diag_plot_export_choice",
+                  NULL,
+                  choices = c(
+                    "Residuals vs Fitted" = "resid_fitted",
+                    "Normal QQ Plot" = "qq",
+                    "Observed vs Fitted" = "obs_fitted",
+                    "Empirical Bayes Caterpillar" = "caterpillar",
+                    "Model-Implied Cluster Lines" = "cluster_lines"
+                  ),
+                  selected = "resid_fitted"
+                ),
+                shiny::downloadButton("download_diag_plot", "Download Plot (.png, 300 DPI)", class = "btn-outline-primary btn-sm"),
                 shiny::hr(),
                 shiny::tags$strong(style = "font-size:0.86rem;", "Export Residual Files"),
                 shiny::p(class = "equation-subnote", "Download complete-case Level-1 residuals or cluster empirical Bayes estimates as CSV:"),
@@ -493,11 +544,18 @@ app_ui <- function() {
             "Compare",
             shiny::br(),
             bslib::card(
-              bslib::card_header("Model Fit & Deviance Comparison"),
+              bslib::card_header("Sequential Multilevel Model Builder & Side-by-Side APA Table"),
+              shiny::p(class = "equation-subnote", "Compare stored models side-by-side in publication format, or automatically estimate the classic 3-step multilevel sequence (Step 1: Unconditional Null -> Step 2: Level-1 Model -> Step 3: Full Current Model) on an identical complete-case analytic sample:"),
               shiny::div(
                 class = "code-actions",
+                shiny::actionButton("run_sequential_build", "Auto-Build 3-Step Sequence (Null -> L1 -> Full)", class = "btn-primary"),
+                shiny::downloadButton("download_compare_html", "Download Side-by-Side Table (.html / Word)", class = "btn-outline-primary"),
                 shiny::actionButton("clear_model_history", "Clear Comparison History", class = "btn-outline-secondary")
               ),
+              shiny::div(class = "scroll-table", shiny::uiOutput("side_by_side_compare_html"))
+            ),
+            bslib::card(
+              bslib::card_header("Model Fit & Deviance Summary"),
               shiny::div(class = "scroll-table", shiny::tableOutput("model_compare_table"))
             ),
             bslib::card(
@@ -514,6 +572,7 @@ app_ui <- function() {
       "Report & Code",
       shiny::div(
         class = "results-page",
+        shiny::uiOutput("report_sync_banner"),
         bslib::card(
           bslib::card_header("Quarto Report"),
           shiny::p("Download a Quarto-ready report with the model summary, model-based and cluster-robust APA tables, R2/reliability, equations, diagnostics, R code, and LaTeX."),

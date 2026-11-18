@@ -32,6 +32,13 @@
     marginal coefficients and odds ratios in binary logit mixed models;
   - `mlm_residual_files()` for exporting Level-1 and cluster-level empirical
     Bayes residual tables.
+- Added `R/plots_visuals.R` with `mlm_interaction_plot()` (interactive
+  simple-slopes / cross-level moderation probing with 95% confidence ribbons),
+  `mlm_coef_plot()` (model-based vs. cluster-robust forest plots),
+  `mlm_compare_table()` (side-by-side multi-model APA tables), 300-DPI `.png`
+  figure downloads, one-click 3-step sequential model building (`Null -> Level 1
+  -> Full`), and out-of-sync specification banners across **Results** and
+  **Report & Code**.
 - Upgraded `mlm_reliability()` via a Woodbury matrix formulation to compute
   empirical Bayes reliabilities ($\hat{\lambda}$) for **both** random intercepts
   and random slopes across clusters.
