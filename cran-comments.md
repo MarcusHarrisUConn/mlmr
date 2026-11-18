@@ -1,40 +1,34 @@
 ## R CMD check results
 
-0 errors | 0 warnings | 1 expected note on full CI environments
+0 errors | 0 warnings | 1 expected note on GitHub Actions CI (Windows, macOS, Ubuntu)
 0 errors | 0 warnings | 2 notes on local macOS
 
 ## Test environments
 
-- Local macOS Tahoe 26.6.2, R 4.6.1
-- GitHub Actions, Windows latest, R release
-- GitHub Actions, macOS latest, R release
-- GitHub Actions, Ubuntu latest, R release
-- GitHub Actions, Ubuntu latest, R devel
+- Local macOS Tahoe 26.6.2 (aarch64-apple-darwin23), R 4.6.1
+- GitHub Actions: windows-latest (R release)
+- GitHub Actions: macos-latest (R release)
+- GitHub Actions: ubuntu-latest (R release)
+- GitHub Actions: ubuntu-latest (R devel)
 
 ## Check notes
 
-- CRAN incoming reports "New submission"; this is expected for the first CRAN
-  submission.
-- The local macOS check also reports that HTML validation was skipped because
-  the available `tidy` executable is not recent enough. This is a local
-  toolchain note and is not present on the full CI check matrix.
-
-- The package title does not contain "in R", and the Description cites the
-  methods the package builds on with DOIs.
-- All examples run unwrapped and complete in well under one second each.
+- CRAN incoming feasibility reports `New submission`; this is expected for the
+  initial CRAN release of `mlmr`.
+- Proper names and standard statistical acronyms in `DESCRIPTION` (`Bates`,
+  `Maechler`, `Bolker`, `Enders`, `Tofighi`, `Satterthwaite`, `Kenward`,
+  `Kuznetsova`, `Brockhoff`, `Christensen`, `Huber`, `Raudenbush`, `Bryk`,
+  `Nakagawa`, `Schielzeth`, `APA`) are spelled intentionally; software and
+  package names (`'Shiny'`, `'lme4'`, `'lmerTest'`) are single-quoted and
+  referenced with DOIs/ISBNs.
+- Local macOS check reports that HTML validation was skipped because the local
+  `tidy` executable is older than HTML Tidy 5; full HTML checks run cleanly on
+  the GitHub Actions CI matrix.
+- All `\Rd` files include explicit `\value` tags and unwrapped `< 1s`
+  `\examples` (`run_mlmr()` is guarded by `if (interactive())`), and calling
+  `example_hsb()` or `example_longitudinal()` restores the caller's `.Random.seed`
+  via `on.exit()`.
 
 ## Downstream dependencies
 
-There are no known downstream dependencies.
-
-## Submission notes
-
-This is a new submission.
-
-`mlmr` provides a Shiny interface and R toolkit for fitting, understanding, and
-reporting mixed-effects and multilevel models with `lme4`. The Shiny app is
-launched by `run_mlmr()` and includes a built-in example dataset so users can
-demo the workflow without external files.
-
-The package includes optional upload support for Excel, SPSS, SAS, and Stata
-files through packages listed in `Suggests`.
+There are no downstream dependencies (new submission).
